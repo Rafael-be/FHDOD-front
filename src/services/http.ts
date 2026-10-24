@@ -122,8 +122,8 @@ export class HttpClient {
         throw new ApiError(error?.message ?? "Não foi possível concluir a solicitação.", response.status, error?.code);
       }
       if (response.status === 204) return undefined as T;
-      if (!("data" in payload)) throw new ApiError("Resposta da API inválida.", response.status);
-      return payload.data;
+      if (payload && typeof payload === "object" && "data" in payload) return payload.data as T;
+      return payload as T;
     };
 
     if (!dedupeKey) return execute(true);
