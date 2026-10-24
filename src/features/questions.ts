@@ -18,10 +18,15 @@ export interface Question {
   lowScoreThreshold: number;
 }
 
+export interface ScopedQuestionInput { text: string; scope: "all_sectors" | "selected_sectors"; sectorIds: number[]; }
+
 export const questionsService = {
   list(sectorId: number) { return api.request<Question[]>(`/api/sectors/${sectorId}/questions`); },
   createSector(sectorId: number, text: string, displayOrder: number) { return api.request<Question>(`/api/sectors/${sectorId}/questions`, { method: "POST", body: { text, displayOrder } }); },
   updateText(id: number, text: string) { return api.request<Question>(`/api/questions/${id}`, { method: "PATCH", body: { text } }); },
   deactivate(id: number) { return api.request<void>(`/api/questions/${id}/deactivate`, { method: "POST" }); },
   reorderSector(sectorId: number, orderedIds: number[]) { return api.request<void>(`/api/sectors/${sectorId}/questions/reorder`, { method: "POST", body: { orderedIds } }); },
+  reorderStandard(sectorId: number, orderedIds: number[]) { return api.request<void>(`/api/sectors/${sectorId}/standard-questions/reorder`, { method: "POST", body: { orderedIds } }); },
+  createStandard(input: ScopedQuestionInput & { displayOrder: number }) { return api.request<Question>("/api/standard-questions", { method: "POST", body: input }); },
+  createNps(input: ScopedQuestionInput) { return api.request<Question>("/api/nps-questions", { method: "POST", body: input }); },
 };

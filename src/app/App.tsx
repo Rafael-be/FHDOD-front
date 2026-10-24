@@ -8,6 +8,7 @@ import { ManagersPage } from "../features/ManagersPage";
 import { SectorsPage } from "../features/SectorsPage";
 import { SectorQuestionsPage } from "../features/SectorQuestionsPage";
 import { EditPage, PublicPage } from "../features/PagesPage";
+import { QuestionCreationPage } from "../features/QuestionCreationPage";
 
 function usePath() {
   const [path, setPath] = useState(window.location.pathname);
@@ -29,6 +30,8 @@ function AuthenticatedApp() {
   if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} onQuestions={(sectorId) => navigate(`/setores/${sectorId}/perguntas`)} />);
   const questionRoute = path.match(/^\/setores\/(\d+)\/perguntas$/);
   if (questionRoute) return shell(<SectorQuestionsPage sectorId={Number(questionRoute[1])} canManageStandards={user.role === "superuser"} />);
+  if (path === "/perguntas-padrao/nova") return user.role === "superuser" ? shell(<QuestionCreationPage type="standard" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
+  if (path === "/nps/novo") return user.role === "superuser" ? shell(<QuestionCreationPage type="nps" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
   if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
