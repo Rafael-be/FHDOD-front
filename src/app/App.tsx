@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { ChangeEmailForm, LoginForm, PasswordForm } from "../features/auth/AuthForms";
 import { ManagersPage } from "../features/ManagersPage";
 import { SectorsPage } from "../features/SectorsPage";
+import { EditPage, PublicPage } from "../features/PagesPage";
 
 function usePath() {
   const [path, setPath] = useState(window.location.pathname);
@@ -24,6 +25,8 @@ function AuthenticatedApp() {
   if (path === "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/gestores") return user.role === "superuser" ? shell(<ManagersPage />) : shell(<ErrorState />);
   if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} />);
+  if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
+  if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
   if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
   return shell(<><div className="fhdod-page-heading"><div><p className="eyebrow">FHDOD</p><h1>Olá, {user.name}</h1><p>{user.role === "superuser" ? "Superusuário" : "Gestor de setor"} · {user.email}</p></div><StatusBadge status="active" /></div><Alert tone="info">As funções administrativas serão adicionadas nas próximas entregas.</Alert><EmptyState title="Nenhum dado para exibir">Esta etapa cobre acesso e conta; não há dados administrativos carregados.</EmptyState></>);
@@ -34,6 +37,7 @@ function Router() {
   if (status === "checking") return <main className="fhdod-auth-page"><LoadingState /></main>;
   if (status === "unavailable") return <main className="fhdod-auth-page"><ErrorState /><button className="btn fhdod-button fhdod-button--primary mt-3" type="button" onClick={() => { void restore(); }}>Tentar novamente</button></main>;
   if (status === "anonymous") {
+    if (path === "/lgpd") return <main className="fhdod-auth-page"><PublicPage /></main>;
     if (path === "/trocar-senha-temporaria" || path === "/conta") return <main className="fhdod-auth-page"><EmptyState title="Sua sessão terminou">Entre novamente para continuar.</EmptyState></main>;
     return <main className="fhdod-auth-page"><LoginForm onSuccess={() => navigate("/")} /></main>;
   }
