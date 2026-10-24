@@ -34,14 +34,14 @@ function AuthenticatedApp() {
 }
 
 function Router() {
-  const { status, restore } = useAuth(); const { path, navigate } = usePath();
+  const { status, restore, sessionExpired } = useAuth(); const { path, navigate } = usePath();
   useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
   if (status === "checking") return <main className="fhdod-auth-page"><LoadingState /></main>;
   if (status === "unavailable") return <main className="fhdod-auth-page"><ErrorState /><button className="btn fhdod-button fhdod-button--primary mt-3" type="button" onClick={() => { void restore(); }}>Tentar novamente</button></main>;
   if (status === "anonymous") {
     if (path === "/lgpd") return <main className="fhdod-auth-page"><PublicPage /></main>;
     if (path === "/trocar-senha-temporaria" || path === "/conta") return <main className="fhdod-auth-page"><EmptyState title="Sua sessão terminou">Entre novamente para continuar.</EmptyState></main>;
-    return <main className="fhdod-auth-page"><LoginForm onSuccess={() => navigate("/")} /></main>;
+    return <main className="fhdod-auth-page"><LoginForm onSuccess={() => navigate("/")} sessionExpired={sessionExpired} /></main>;
   }
   return <AuthenticatedApp />;
 }

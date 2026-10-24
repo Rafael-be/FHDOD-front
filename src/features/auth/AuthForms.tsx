@@ -16,10 +16,10 @@ const messageFor = (error: unknown, fallback: string) => {
 
 const passwordError = (password: string, confirmation: string) => password.length < 12 ? "A nova senha deve ter pelo menos 12 caracteres." : password !== confirmation ? "As senhas não coincidem." : undefined;
 
-export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+export function LoginForm({ onSuccess, sessionExpired = false }: { onSuccess: () => void; sessionExpired?: boolean }) {
   const { login } = useAuth(); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState<string>(); const [busy, setBusy] = useState(false);
   const submit = async (event: FormEvent) => { event.preventDefault(); setError(undefined); if (!email || !password) { setError("Informe seu e-mail e sua senha."); return; } setBusy(true); try { await login(email, password); onSuccess(); } catch (cause) { setError(messageFor(cause, "Não foi possível entrar agora.")); } finally { setBusy(false); } };
-  return <form className="fhdod-auth-card" onSubmit={submit} noValidate><p className="eyebrow">Acesso restrito</p><h1>Entre na sua conta</h1><p>Use suas credenciais institucionais para continuar.</p>{error && <Alert tone="danger">{error}</Alert>}<FormField label="E-mail" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /><PasswordField label="Senha" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /><Button className="w-100" type="submit" loading={busy}>Entrar</Button></form>;
+  return <form className="fhdod-auth-card" onSubmit={submit} noValidate><p className="eyebrow">Acesso restrito</p><h1>Entre na sua conta</h1><p>Use suas credenciais institucionais para continuar.</p>{sessionExpired && <Alert tone="info">Sua sessão terminou. Entre novamente para continuar.</Alert>}{error && <Alert tone="danger">{error}</Alert>}<FormField label="E-mail" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /><PasswordField label="Senha" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /><Button className="w-100" type="submit" loading={busy}>Entrar</Button></form>;
 }
 
 export function PasswordForm({ temporary = false, onSuccess }: { temporary?: boolean; onSuccess: () => void }) {
