@@ -19,6 +19,7 @@ function AuthenticatedApp() {
   const { path, navigate } = usePath(); const { logout, user } = useAuth();
   const signOut = async () => { await logout(); navigate("/entrar"); };
   const shell = (content: ReactNode) => <AppLayout onNavigate={navigate} onLogout={() => { void signOut(); }} canManage={user?.role === "superuser"}>{content}</AppLayout>;
+  useEffect(() => { if (user?.mustChangePassword && path !== "/trocar-senha-temporaria") navigate("/trocar-senha-temporaria"); }, [navigate, path, user?.mustChangePassword]);
   if (!user) return <main className="fhdod-auth-page"><ErrorState /></main>;
   if (user.mustChangePassword && path !== "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/conta") return shell(<section><div className="fhdod-page-heading"><div><p className="eyebrow">Minha conta</p><h1>Dados de acesso</h1><p>Altere suas credenciais institucionais com confirmação da senha atual.</p></div></div><div className="fhdod-profile-grid"><ChangeEmailForm onSuccess={() => navigate("/entrar")} /><section className="fhdod-profile-card"><PasswordForm onSuccess={() => navigate("/entrar")} /></section></div></section>);
@@ -34,6 +35,7 @@ function AuthenticatedApp() {
 
 function Router() {
   const { status, restore } = useAuth(); const { path, navigate } = usePath();
+  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
   if (status === "checking") return <main className="fhdod-auth-page"><LoadingState /></main>;
   if (status === "unavailable") return <main className="fhdod-auth-page"><ErrorState /><button className="btn fhdod-button fhdod-button--primary mt-3" type="button" onClick={() => { void restore(); }}>Tentar novamente</button></main>;
   if (status === "anonymous") {
