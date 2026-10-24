@@ -42,11 +42,16 @@ export class HttpClient {
   private csrfRequest: Promise<string> | null = null;
   private refreshRequest: Promise<void> | null = null;
   private readonly inFlight = new Map<string, Promise<unknown>>();
+  private onSessionExpired: (() => void) | null = null;
 
   constructor(private readonly baseUrl = defaultBaseUrl) {}
 
   clearSessionState(): void {
     this.csrfToken = null;
+  }
+
+  setSessionExpiredHandler(handler: (() => void) | null): void {
+    this.onSessionExpired = handler;
   }
 
   private async csrf(): Promise<string> {
@@ -81,6 +86,7 @@ export class HttpClient {
           const payload = await readPayload(response) as ApiEnvelope<{ csrfToken: string }> | ErrorEnvelope;
           if (!response.ok || !("data" in payload)) {
             const error = "error" in payload ? payload.error : undefined;
+            if (response.status === 401) this.onSessionExpired?.();
             throw new ApiError(error?.message ?? "Sua sessão terminou.", response.status, error?.code);
           }
           this.csrfToken = payload.data.csrfToken;
@@ -119,6 +125,7 @@ export class HttpClient {
       }
       if (!response.ok) {
         const error = "error" in payload ? payload.error : undefined;
+        if (response.status === 401 && refreshOnUnauthorized && path !== "/api/auth/login") this.onSessionExpired?.();
         throw new ApiError(error?.message ?? "Não foi possível concluir a solicitação.", response.status, error?.code);
       }
       if (response.status === 204) return undefined as T;

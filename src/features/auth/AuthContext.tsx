@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ApiError } from "../../services/http";
+import { ApiError, api } from "../../services/http";
 import { authService } from "./auth.service";
 import type { AuthenticatedUser } from "./auth.types";
 
@@ -11,6 +11,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("checking"); const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const generation = useRef(0); const restoreRequest = useRef<Promise<void> | null>(null);
   const clearSession = useCallback(() => { generation.current += 1; setUser(null); setStatus("anonymous"); }, []);
+  useEffect(() => { api.setSessionExpiredHandler(clearSession); return () => api.setSessionExpiredHandler(null); }, [clearSession]);
   const restore = useCallback(async () => {
     if (restoreRequest.current) return restoreRequest.current;
     const operationGeneration = generation.current;
