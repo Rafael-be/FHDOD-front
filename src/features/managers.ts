@@ -15,4 +15,5 @@ export const managersService = {
   sectors(id: number) { return api.request<SectorOption[]>(`/api/managers/${id}/sectors`); },
   assignSector(managerId: number, sectorId: number) { return api.request<void>(`/api/managers/${managerId}/sectors/${sectorId}`, { method: "PUT" }); },
   unassignSector(managerId: number, sectorId: number) { return api.request<void>(`/api/managers/${managerId}/sectors/${sectorId}`, { method: "DELETE" }); },
+  availableSectors() { return api.request<SectorOption[]>("/api/sectors"); },
 };
