@@ -5,6 +5,7 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { ChangeEmailForm, LoginForm, PasswordForm } from "../features/auth/AuthForms";
 import { ManagersPage } from "../features/ManagersPage";
+import { SectorsPage } from "../features/SectorsPage";
 
 function usePath() {
   const [path, setPath] = useState(window.location.pathname);
@@ -22,6 +23,7 @@ function AuthenticatedApp() {
   if (path === "/conta") return shell(<section><div className="fhdod-page-heading"><div><p className="eyebrow">Minha conta</p><h1>Dados de acesso</h1><p>Altere suas credenciais institucionais com confirmação da senha atual.</p></div></div><div className="fhdod-profile-grid"><ChangeEmailForm onSuccess={() => navigate("/entrar")} /><section className="fhdod-profile-card"><PasswordForm onSuccess={() => navigate("/entrar")} /></section></div></section>);
   if (path === "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/gestores") return user.role === "superuser" ? shell(<ManagersPage />) : shell(<ErrorState />);
+  if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} />);
   if (path === "/erro") return shell(<ErrorState />);
   if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
   return shell(<><div className="fhdod-page-heading"><div><p className="eyebrow">FHDOD</p><h1>Olá, {user.name}</h1><p>{user.role === "superuser" ? "Superusuário" : "Gestor de setor"} · {user.email}</p></div><StatusBadge status="active" /></div><Alert tone="info">As funções administrativas serão adicionadas nas próximas entregas.</Alert><EmptyState title="Nenhum dado para exibir">Esta etapa cobre acesso e conta; não há dados administrativos carregados.</EmptyState></>);

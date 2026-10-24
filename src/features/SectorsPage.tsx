@@ -1,0 +1,22 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { BaseModal } from "../components/ui/BaseModal";
+import { Button } from "../components/ui/Button";
+import { FormField } from "../components/forms/FormField";
+import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
+import { ApiError } from "../services/http";
+import { sectorsService, type Sector } from "./sectors";
+
+export function SectorsPage({ canManage }: { canManage: boolean }) {
+  const [items, setItems] = useState<Sector[] | null>(null); const [modal, setModal] = useState<"create" | "edit" | "deactivate" | "reactivate" | null>(null); const [selected, setSelected] = useState<Sector | null>(null); const [error, setError] = useState(false); const [message, setMessage] = useState<string>();
+  const load = () => { setError(false); sectorsService.list().then(setItems).catch(() => setError(true)); }; useEffect(load, []);
+  const choose = (sector: Sector, next: NonNullable<typeof modal>) => { setSelected(sector); setModal(next); };
+  if (error) return <ErrorState />; if (!items) return <LoadingState />;
+  return <section><div className="fhdod-page-heading"><div><p className="eyebrow">Administração</p><h1>Setores</h1><p>{canManage ? "Gerencie os setores disponíveis." : "Setores vinculados à sua conta."}</p></div>{canManage && <Button onClick={() => setModal("create")}>Cadastrar setor</Button>}</div>{message && <Alert tone="success">{message}</Alert>}{!items.length ? <EmptyState title="Nenhum setor disponível">Não há setores disponíveis para sua conta.</EmptyState> : <div className="table-responsive bg-white rounded-3 border"><table className="table mb-0"><thead><tr><th>Nome</th><th>Código</th><th>Situação</th>{canManage && <th><span className="visually-hidden">Ações</span></th>}</tr></thead><tbody>{items.map((sector) => <tr key={sector.id}><td>{sector.name}</td><td>{sector.code}</td><td>{sector.deletedAt ? "Inativo" : "Ativo"}</td>{canManage && <td><Button variant="tertiary" onClick={() => choose(sector, sector.deletedAt ? "reactivate" : "edit")}>{sector.deletedAt ? "Reativar" : "Editar"}</Button>{!sector.deletedAt && <Button variant="destructive" onClick={() => choose(sector, "deactivate")}>Desativar</Button>}</td>}</tr>)}</tbody></table></div>}<SectorDialog mode={modal} sector={selected} onClose={() => setModal(null)} onDone={(text) => { setModal(null); setMessage(text); load(); }} /></section>;
+}
+
+function SectorDialog({ mode, sector, onClose, onDone }: { mode: "create" | "edit" | "deactivate" | "reactivate" | null; sector: Sector | null; onClose: () => void; onDone: (text: string) => void }) {
+  const [code, setCode] = useState(""); const [name, setName] = useState(""); const [busy, setBusy] = useState(false); const [failure, setFailure] = useState<string>(); useEffect(() => { setCode(sector?.code ?? ""); setName(sector?.name ?? ""); setFailure(undefined); }, [sector, mode]);
+  if (!mode) return null; const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); try { if (mode === "create") await sectorsService.create(code, name); if (mode === "edit" && sector) await sectorsService.update(sector.id, name); if (mode === "deactivate" && sector) await sectorsService.deactivate(sector.id); if (mode === "reactivate" && sector) await sectorsService.reactivate(sector.id); onDone(mode === "deactivate" ? "Setor desativado." : mode === "reactivate" ? "Setor reativado." : "Setor salvo."); } catch (cause) { setFailure(cause instanceof ApiError ? cause.message : "Não foi possível concluir a operação."); } finally { setBusy(false); } };
+  const title = mode === "create" ? "Cadastrar setor" : mode === "edit" ? "Editar setor" : mode === "deactivate" ? "Desativar setor" : "Reativar setor";
+  return <BaseModal open title={title} onRequestClose={onClose} busy={busy}><form className="mt-3" onSubmit={submit}>{failure && <Alert tone="danger">{failure}</Alert>}{mode === "deactivate" ? <p>O setor ficará indisponível para novos vínculos.</p> : <>{mode === "create" && <FormField label="Código" value={code} onChange={(event) => setCode(event.target.value)} required />}<FormField label="Nome" value={name} onChange={(event) => setName(event.target.value)} required /></>}<Button type="submit" loading={busy} variant={mode === "deactivate" ? "destructive" : "primary"}>{mode === "deactivate" ? "Confirmar desativação" : "Salvar"}</Button></form></BaseModal>;
+}
