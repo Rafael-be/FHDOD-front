@@ -8,7 +8,7 @@ import { managersService, type CreateManagerInput, type Manager, type SectorOpti
 
 export function ManagersPage() {
   const [items, setItems] = useState<Manager[] | null>(null); const [sectors, setSectors] = useState<SectorOption[]>([]); const [error, setError] = useState(false); const [modal, setModal] = useState<"create" | "edit" | "deactivate" | "reactivate" | "sectors" | null>(null); const [selected, setSelected] = useState<Manager | null>(null); const [message, setMessage] = useState<string>();
-  const load = () => { setError(false); managersService.list().then(setItems).catch(() => setError(true)); managersService.availableSectors().then(setSectors).catch(() => undefined); };
+  const load = () => { setError(false); managersService.list(true).then(setItems).catch(() => setError(true)); managersService.availableSectors().then(setSectors).catch(() => undefined); };
   useEffect(load, []);
   const choose = (manager: Manager, action: NonNullable<typeof modal>) => { setSelected(manager); setModal(action); };
   const deactivate = async () => { if (!selected) return; await managersService.deactivate(selected.id); setModal(null); setMessage("Gestor desativado."); load(); };
