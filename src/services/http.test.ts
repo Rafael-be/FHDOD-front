@@ -28,4 +28,19 @@ describe("HttpClient", () => {
     await Promise.all([first, second]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("preserva respostas públicas de autenticação que não usam o envelope data", async () => {
+    const user = { id: 1, name: "Administrador", email: "admin@hospital.test", role: "superuser", mustChangePassword: false };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({ user })));
+    const client = new HttpClient("http://api.test");
+    await expect(client.request<{ user: typeof user }>("/api/auth/me")).resolves.toEqual({ user });
+  });
+
+  it("notifica a expiração após falha definitiva do refresh", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(response({ error: { message: "Sessão expirada." } }, 401)).mockResolvedValueOnce(response({ error: { message: "Sessão expirada." } }, 401));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new HttpClient("http://api.test"); const expired = vi.fn(); client.setSessionExpiredHandler(expired);
+    await expect(client.request("/api/sectors")).rejects.toMatchObject({ status: 401 });
+    expect(expired).toHaveBeenCalledOnce();
+  });
 });

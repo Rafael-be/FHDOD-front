@@ -1,13 +1,49 @@
+import { useEffect, useState, type ReactNode } from "react";
 import { AppLayout } from "../components/layout/AppLayout";
-import { Alert, EmptyState, ErrorState } from "../components/ui/Feedback";
+import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { AuthProvider, useAuth } from "../features/auth/AuthContext";
+import { ChangeEmailForm, LoginForm, PasswordForm } from "../features/auth/AuthForms";
+import { ManagersPage } from "../features/ManagersPage";
+import { SectorsPage } from "../features/SectorsPage";
+import { EditPage, PublicPage } from "../features/PagesPage";
 
-function Home() {
-  return <AppLayout><div className="fhdod-page-heading"><div><p className="eyebrow">FHDOD</p><h1>Fundação visual pronta</h1><p>Estrutura, componentes e comunicação HTTP da Fase 1 foram configurados.</p></div><StatusBadge status="pending" /></div><Alert tone="info">Autenticação e módulos administrativos serão implementados nas próximas entregas.</Alert><EmptyState title="Nenhum dado para exibir">Esta base ainda não executa chamadas de negócio.</EmptyState></AppLayout>;
+function usePath() {
+  const [path, setPath] = useState(window.location.pathname);
+  useEffect(() => { const listener = () => setPath(window.location.pathname); window.addEventListener("popstate", listener); return () => window.removeEventListener("popstate", listener); }, []);
+  const navigate = (next: string) => { window.history.pushState({}, "", next); setPath(next); };
+  return { path, navigate };
 }
 
-export function App() {
-  if (window.location.pathname === "/") return <Home />;
-  if (window.location.pathname === "/erro") return <AppLayout><ErrorState /></AppLayout>;
-  return <AppLayout><EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState></AppLayout>;
+function AuthenticatedApp() {
+  const { path, navigate } = usePath(); const { logout, user } = useAuth();
+  const signOut = async () => { await logout(); navigate("/entrar"); };
+  const shell = (content: ReactNode) => <AppLayout onNavigate={navigate} onLogout={() => { void signOut(); }} canManage={user?.role === "superuser"}>{content}</AppLayout>;
+  useEffect(() => { if (user?.mustChangePassword && path !== "/trocar-senha-temporaria") navigate("/trocar-senha-temporaria"); }, [navigate, path, user?.mustChangePassword]);
+  if (!user) return <main className="fhdod-auth-page"><ErrorState /></main>;
+  if (user.mustChangePassword && path !== "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
+  if (path === "/conta") return shell(<section><div className="fhdod-page-heading"><div><p className="eyebrow">Minha conta</p><h1>Dados de acesso</h1><p>Altere suas credenciais institucionais com confirmação da senha atual.</p></div></div><div className="fhdod-profile-grid"><ChangeEmailForm onSuccess={() => navigate("/entrar")} /><section className="fhdod-profile-card"><PasswordForm onSuccess={() => navigate("/entrar")} /></section></div></section>);
+  if (path === "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
+  if (path === "/gestores") return user.role === "superuser" ? shell(<ManagersPage />) : shell(<ErrorState />);
+  if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} />);
+  if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
+  if (path === "/lgpd") return shell(<PublicPage />);
+  if (path === "/erro") return shell(<ErrorState />);
+  if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
+  return shell(<><div className="fhdod-page-heading"><div><p className="eyebrow">FHDOD</p><h1>Olá, {user.name}</h1><p>{user.role === "superuser" ? "Superusuário" : "Gestor de setor"} · {user.email}</p></div><StatusBadge status="active" /></div><Alert tone="info">As funções administrativas serão adicionadas nas próximas entregas.</Alert><EmptyState title="Nenhum dado para exibir">Esta etapa cobre acesso e conta; não há dados administrativos carregados.</EmptyState></>);
 }
+
+function Router() {
+  const { status, restore, sessionExpired } = useAuth(); const { path, navigate } = usePath();
+  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
+  if (status === "checking") return <main className="fhdod-auth-page"><LoadingState /></main>;
+  if (status === "unavailable") return <main className="fhdod-auth-page"><ErrorState /><button className="btn fhdod-button fhdod-button--primary mt-3" type="button" onClick={() => { void restore(); }}>Tentar novamente</button></main>;
+  if (status === "anonymous") {
+    if (path === "/lgpd") return <main className="fhdod-auth-page"><PublicPage /></main>;
+    if (path === "/trocar-senha-temporaria" || path === "/conta") return <main className="fhdod-auth-page"><EmptyState title="Sua sessão terminou">Entre novamente para continuar.</EmptyState></main>;
+    return <main className="fhdod-auth-page"><LoginForm onSuccess={() => navigate("/")} sessionExpired={sessionExpired} /></main>;
+  }
+  return <AuthenticatedApp />;
+}
+
+export function App() { return <AuthProvider><Router /></AuthProvider>; }
