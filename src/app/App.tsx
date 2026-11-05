@@ -6,7 +6,9 @@ import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { ChangeEmailForm, LoginForm, PasswordForm } from "../features/auth/AuthForms";
 import { ManagersPage } from "../features/ManagersPage";
 import { SectorsPage } from "../features/SectorsPage";
+import { SectorQuestionsPage } from "../features/SectorQuestionsPage";
 import { EditPage, PublicPage } from "../features/PagesPage";
+import { QuestionCreationPage } from "../features/QuestionCreationPage";
 
 function usePath() {
   const [path, setPath] = useState(window.location.pathname);
@@ -25,7 +27,11 @@ function AuthenticatedApp() {
   if (path === "/conta") return shell(<section><div className="fhdod-page-heading"><div><p className="eyebrow">Minha conta</p><h1>Dados de acesso</h1><p>Altere suas credenciais institucionais com confirmação da senha atual.</p></div></div><div className="fhdod-profile-grid"><ChangeEmailForm onSuccess={() => navigate("/entrar")} /><section className="fhdod-profile-card"><PasswordForm onSuccess={() => navigate("/entrar")} /></section></div></section>);
   if (path === "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/gestores") return user.role === "superuser" ? shell(<ManagersPage />) : shell(<ErrorState />);
-  if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} />);
+  if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} onQuestions={(sectorId) => navigate(`/setores/${sectorId}/perguntas`)} />);
+  const questionRoute = path.match(/^\/setores\/(\d+)\/perguntas$/);
+  if (questionRoute) return shell(<SectorQuestionsPage sectorId={Number(questionRoute[1])} canManageStandards={user.role === "superuser"} />);
+  if (path === "/perguntas-padrao/nova") return user.role === "superuser" ? shell(<QuestionCreationPage type="standard" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
+  if (path === "/nps/novo") return user.role === "superuser" ? shell(<QuestionCreationPage type="nps" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
   if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
