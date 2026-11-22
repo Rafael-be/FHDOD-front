@@ -9,6 +9,7 @@ import { SectorsPage } from "../features/SectorsPage";
 import { SectorQuestionsPage } from "../features/SectorQuestionsPage";
 import { EditPage, PublicPage } from "../features/PagesPage";
 import { QuestionCreationPage } from "../features/QuestionCreationPage";
+import { PublicSubmissionPage } from "../features/PublicSubmissionPage";
 
 function usePath() {
   const [path, setPath] = useState(window.location.pathname);
@@ -41,6 +42,8 @@ function AuthenticatedApp() {
 
 function Router() {
   const { status, restore, sessionExpired } = useAuth(); const { path, navigate } = usePath();
+  const submissionRoute = path.match(/^\/avaliacao\/(\d+)$/);
+  if (submissionRoute) return <PublicSubmissionPage sectorId={Number(submissionRoute[1])} />;
   useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
   if (status === "checking") return <main className="fhdod-auth-page"><LoadingState /></main>;
   if (status === "unavailable") return <main className="fhdod-auth-page"><ErrorState /><button className="btn fhdod-button fhdod-button--primary mt-3" type="button" onClick={() => { void restore(); }}>Tentar novamente</button></main>;
