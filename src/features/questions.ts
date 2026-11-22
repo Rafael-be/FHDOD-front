@@ -21,12 +21,15 @@ export interface Question {
 export interface ScopedQuestionInput { text: string; scope: "all_sectors" | "selected_sectors"; sectorIds: number[]; }
 
 export const questionsService = {
-  list(sectorId: number) { return api.request<Question[]>(`/api/sectors/${sectorId}/questions`); },
-  createSector(sectorId: number, text: string, displayOrder: number) { return api.request<Question>(`/api/sectors/${sectorId}/questions`, { method: "POST", body: { text, displayOrder } }); },
+  list(sectorId: number, includeDeleted = false) { return api.request<Question[]>(`/api/sectors/${sectorId}/questions${includeDeleted ? "?deleted=true" : ""}`); },
+  createSector(sectorId: number, text: string) { return api.request<Question>(`/api/sectors/${sectorId}/questions`, { method: "POST", body: { text } }); },
   updateText(id: number, text: string) { return api.request<Question>(`/api/questions/${id}`, { method: "PATCH", body: { text } }); },
   deactivate(id: number) { return api.request<void>(`/api/questions/${id}/deactivate`, { method: "POST" }); },
+  reactivate(id: number) { return api.request<Question>(`/api/questions/${id}/reactivate`, { method: "POST" }); },
   reorderSector(sectorId: number, orderedIds: number[]) { return api.request<void>(`/api/sectors/${sectorId}/questions/reorder`, { method: "POST", body: { orderedIds } }); },
   reorderStandard(sectorId: number, orderedIds: number[]) { return api.request<void>(`/api/sectors/${sectorId}/standard-questions/reorder`, { method: "POST", body: { orderedIds } }); },
-  createStandard(input: ScopedQuestionInput & { displayOrder: number }) { return api.request<Question>("/api/standard-questions", { method: "POST", body: input }); },
+  createStandard(input: ScopedQuestionInput) { return api.request<Question>("/api/standard-questions", { method: "POST", body: input }); },
   createNps(input: ScopedQuestionInput) { return api.request<Question>("/api/nps-questions", { method: "POST", body: input }); },
+  deactivateStandardAssignment(sectorId: number, questionId: number) { return api.request<void>(`/api/sectors/${sectorId}/standard-questions/${questionId}/deactivate`, { method: "POST" }); },
+  reactivateStandardAssignment(sectorId: number, questionId: number) { return api.request<void>(`/api/sectors/${sectorId}/standard-questions/${questionId}/reactivate`, { method: "POST" }); },
 };
