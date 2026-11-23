@@ -36,4 +36,4 @@ Execute `npm ci` e `npm run dev`; abra o endereço local informado pelo Vite. Pa
 5. Entre com `gestor@gmail.com`; confira que vê somente seu setor e não acessa as telas exclusivas de superusuário.
 6. Para validar conflitos de rascunho, abra o editor em duas abas, salve uma revisão em cada e confirme que a segunda recebe conflito e oferece recarga.
 
-O smoke HTTP local desta implementação verificou login de ambos os papéis, rascunho/publicação, pesquisa, analytics, Ouvidoria, template CSV e `403` de gestor fora do escopo. O teste de interface em navegador e o upload CSV via HTTP ainda dependem de execução manual; os serviços de frontend têm testes leves automatizados.
+O smoke HTTP local desta implementação verificou login de ambos os papéis, rascunho/publicação, pesquisa, analytics, Ouvidoria, upload/download CSV binário e `403` de gestor fora do escopo. O teste de interface em navegador depende de execução manual porque o ambiente da sessão não possui Chrome; os serviços de frontend têm testes leves automatizados.

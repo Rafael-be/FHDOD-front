@@ -10,4 +10,7 @@
 - Dashboard e gráficos conectados a `GET /api/analytics/dashboard`; Ouvidoria pública e administrativa conectada.
 - Gates finais do frontend: typecheck, lint, 24 testes e build aprovados; smoke HTTP real local passou com superusuário e gestor.
 - Suíte completa do backend no banco novo local: 57 suítes aprovadas, 3 falhas, 1 ignorada; 220 testes aprovados, 6 falhas, 4 ignorados. As falhas são dos testes de rascunho/publicação que usam IDs e vínculos fixos da fixture histórica, ausentes no banco novo. O teste novo do catálogo e os 10 testes OpenAPI passaram. A suíte do backend ainda não é reproduzível em banco novo sem corrigir essas fixtures.
-- Próximo passo: commit da documentação e PR para `develop`, mantendo a dependência do commit local de backend explícita.
+- Upload CSV binário e exportação foram validados por HTTP após a suíte completa (que alterou a versão vigente no banco descartável). O servidor e o cluster PostgreSQL temporário foram encerrados.
+- O Chrome não está instalado neste ambiente; inspeção visual automatizada não executada. O Vite iniciou com proxy local e foi encerrado.
+- `git push -u origin feature/frontend-completion` falhou por ausência de credencial HTTPS no ambiente. A branch local está limpa e contém commits prontos; PR não pôde ser aberto sem a branch remota.
+- Próximo passo: corrigir as fixtures rígidas da suíte backend, publicar o commit de backend `8904e76`, configurar autenticação Git e enviar a branch frontend para abrir PR contra `develop`.
