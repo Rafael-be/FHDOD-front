@@ -37,7 +37,7 @@ function usePath() {
 function AuthenticatedApp() {
   const { path, navigate } = usePath(); const { logout, user } = useAuth();
   const signOut = async () => { await logout(); navigate("/entrar"); };
-  const shell = (content: ReactNode) => <AppLayout onNavigate={navigate} onLogout={() => { void signOut(); }} canManage={user?.role === "superuser"}>{content}</AppLayout>;
+  const shell = (content: ReactNode) => <AppLayout currentPath={path} onNavigate={navigate} onLogout={() => { void signOut(); }} canManage={user?.role === "superuser"}>{content}</AppLayout>;
   useEffect(() => { if (user?.mustChangePassword && path !== "/trocar-senha-temporaria") navigate("/trocar-senha-temporaria"); }, [navigate, path, user?.mustChangePassword]);
   if (!user) return <main className="fhdod-auth-page"><ErrorState /></main>;
   if (user.mustChangePassword && path !== "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;

@@ -38,7 +38,7 @@ export function PublicSubmissionPage({ sectorId }: { sectorId: number }) {
         setBusy(false);
       }
     };
-    return <main className="fhdod-auth-page"><section className="fhdod-profile-card text-center"><p className="eyebrow">{closed ? "Avaliação encerrada" : "Avaliação concluída"}</p><h1>Obrigado pela sua participação</h1><p>{closed ? "As respostas já registradas foram preservadas." : "Sua participação foi registrada."}</p>{error && <Alert tone="danger">{error}</Alert>}<div className="d-flex justify-content-center gap-2"><Button loading={busy} onClick={() => { void restart(); }}>Responder novamente</Button><a className="btn btn-outline-primary" href={`/manifestacao/${sectorId}`}>Enviar manifestação à Ouvidoria</a></div></section></main>;
+    return <main className="fhdod-auth-page fhdod-public-page"><section className="fhdod-profile-card fhdod-public-card text-center"><p className="eyebrow">{closed ? "Avaliação encerrada" : "Avaliação concluída"}</p><h1>Obrigado pela sua participação</h1><p>{closed ? "As respostas já registradas foram preservadas." : "Sua participação foi registrada."}</p>{error && <Alert tone="danger">{error}</Alert>}<div className="d-flex flex-wrap justify-content-center gap-2"><Button loading={busy} onClick={() => { void restart(); }}>Responder novamente</Button><a className="btn btn-outline-primary" href={`/manifestacao/${sectorId}`}>Enviar manifestação à Ouvidoria</a></div></section></main>;
   }
 
   const question = start.questions[index];
@@ -52,7 +52,7 @@ export function PublicSubmissionPage({ sectorId }: { sectorId: number }) {
     setError(undefined);
     try {
       const numericScore = skipped ? null : Number(score);
-      if (!skipped && (numericScore === null || !Number.isInteger(numericScore) || numericScore < min || numericScore > max)) {
+      if (!skipped && (score === "" || numericScore === null || !Number.isInteger(numericScore) || numericScore < min || numericScore > max)) {
         setError(`Informe uma nota entre ${min} e ${max}.`);
         return;
       }
@@ -86,5 +86,13 @@ export function PublicSubmissionPage({ sectorId }: { sectorId: number }) {
     finally { setBusy(false); }
   };
 
-  return <main className="fhdod-auth-page"><section className="fhdod-profile-card"><p className="eyebrow">Pergunta {index + 1} de {start.questions.length}</p><h1>{question.text}</h1>{error && <Alert tone="danger">{error}</Alert>}<div className="d-flex flex-wrap gap-2 my-4">{Array.from({ length: max - min + 1 }, (_, offset) => min + offset).map((value) => <Button key={value} type="button" variant={score === String(value) ? "primary" : "secondary"} disabled={busy} onClick={() => setScore(String(value))}>{value}</Button>)}</div><div className="d-flex flex-wrap gap-2">{question.questionKind === "sector" && <Button type="button" variant="tertiary" loading={busy} onClick={() => { void submit(true); }}>Pular</Button>}<Button type="button" loading={busy} onClick={() => { void submit(false); }}>Confirmar</Button><Button type="button" variant="secondary" disabled={busy} onClick={() => { void refresh(); }}>Preciso de mais tempo</Button><Button type="button" variant="tertiary" disabled={busy} onClick={() => { void close(); }}>Encerrar</Button></div></section></main>;
+  return <main className="fhdod-auth-page fhdod-public-page"><section className="fhdod-profile-card fhdod-public-card">
+    <p className="eyebrow">Avaliação do atendimento</p>
+    <div className="fhdod-question-progress"><span>Pergunta {index + 1} de {start.questions.length}</span><div className="progress" role="progressbar" aria-label="Progresso da avaliação" aria-valuenow={index + 1} aria-valuemin={1} aria-valuemax={start.questions.length}><div className="progress-bar" style={{ width: `${((index + 1) / start.questions.length) * 100}%` }} /></div></div>
+    <h1>{question.text}</h1>
+    <p className="text-secondary mb-0">Selecione uma nota de {min} a {max}.</p>
+    {error && <Alert tone="danger">{error}</Alert>}
+    <div className="fhdod-score-options" data-nps={question.isNps} role="group" aria-label={`Notas de ${min} a ${max}`}>{Array.from({ length: max - min + 1 }, (_, offset) => min + offset).map((value) => <Button key={value} type="button" variant={score === String(value) ? "primary" : "secondary"} aria-pressed={score === String(value)} disabled={busy} onClick={() => setScore(String(value))}>{value}</Button>)}</div>
+    <div className="fhdod-question-actions"><Button type="button" loading={busy} onClick={() => { void submit(false); }}>Confirmar nota</Button>{question.questionKind === "sector" && <Button type="button" variant="tertiary" loading={busy} onClick={() => { void submit(true); }}>Pular</Button>}<Button type="button" variant="secondary" disabled={busy} onClick={() => { void refresh(); }}>Preciso de mais tempo</Button><Button type="button" variant="tertiary" disabled={busy} onClick={() => { void close(); }}>Encerrar</Button></div>
+  </section></main>;
 }

@@ -10,12 +10,13 @@ describe("AppLayout", () => {
     document.body.append(container);
     const root = createRoot(container);
     const navigate = vi.fn();
-    await act(async () => { root.render(<AppLayout onNavigate={navigate} onLogout={vi.fn()} canManage={false}>Conteúdo</AppLayout>); });
+    await act(async () => { root.render(<AppLayout currentPath="/" onNavigate={navigate} onLogout={vi.fn()} canManage={false}>Conteúdo</AppLayout>); });
     const blocker = (event: Event) => event.preventDefault();
     window.addEventListener("fhdod:beforeNavigate", blocker);
     try {
       const button = [...container.querySelectorAll("button")].find((item) => item.textContent === "Indicadores");
       expect(button).toBeDefined();
+      expect(button?.getAttribute("aria-current")).toBe("page");
       await act(async () => { button!.click(); });
       expect(navigate).not.toHaveBeenCalled();
     } finally {

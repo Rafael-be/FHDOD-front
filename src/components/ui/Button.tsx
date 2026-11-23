@@ -9,7 +9,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function Button({ variant = "primary", loading = false, children, disabled, className = "", ...props }: ButtonProps) {
   return (
-    <button className={`btn fhdod-button fhdod-button--${variant} ${className}`} disabled={disabled || loading} {...props}>
+    <button className={`btn fhdod-button fhdod-button--${variant} ${className}`} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
       {loading && <span className="spinner-border spinner-border-sm" aria-hidden="true" />}
       <span>{children}</span>
     </button>
