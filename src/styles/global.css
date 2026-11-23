@@ -6,3 +6,11 @@
 .fhdod-brand { padding:0; text-align:left; background:none; border:0; }.fhdod-sidebar nav button { min-height:48px; padding:12px; width:100%; color:var(--fhdod-text-primary); text-align:left; background:none; border:0; border-radius:var(--fhdod-radius-8); }.fhdod-sidebar nav button:hover { background:var(--fhdod-surface-subtle); }.fhdod-header { justify-content:space-between; }.fhdod-field { margin-bottom:20px; }.fhdod-auth-page { min-height:100vh; display:grid; place-items:center; padding:24px; }.fhdod-auth-card,.fhdod-profile-card { width:min(100%,520px); padding:32px; background:var(--fhdod-surface-default); border:1px solid var(--fhdod-border-default); border-radius:var(--fhdod-radius-12); }.fhdod-auth-card h1 { font-size:28px; font-weight:600; }.fhdod-auth-card>p,.fhdod-profile-card>p { color:var(--fhdod-text-secondary); }.fhdod-profile-grid { display:grid; grid-template-columns:repeat(2,minmax(0,560px)); gap:24px; }.fhdod-profile-grid .fhdod-auth-card { width:100%; padding:0; border:0; }.fhdod-profile-card h2 { font-size:20px; font-weight:600; } @media (max-width: 991px) { .fhdod-profile-grid { grid-template-columns:1fr; } } @media (max-width: 640px) { .fhdod-sidebar nav button { min-height:auto; padding:8px; } .fhdod-auth-page { padding:16px; }.fhdod-auth-card,.fhdod-profile-card { padding:24px; } }
 
 .fhdod-password-toggle { position:absolute; right:8px; top:38px; color:var(--fhdod-focus-ring); z-index:1; }
+
+.fhdod-main .fhdod-profile-card { width:100%; }
+.fhdod-auth-page .fhdod-profile-card { width:min(100%,520px); }
+@media (max-width:640px) {
+  .fhdod-sidebar { display:block; }
+  .fhdod-sidebar nav { display:flex; overflow-x:auto; gap:4px; margin-top:12px; }
+  .fhdod-sidebar nav button { width:auto; min-width:max-content; min-height:44px; }
+}
