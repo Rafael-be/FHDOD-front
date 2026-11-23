@@ -14,10 +14,23 @@ import { AuditPage } from "../features/AuditPage";
 import { AnalyticsPage } from "../features/AnalyticsPage";
 import { OmbudsmanPage, PublicOmbudsmanPage } from "../features/OmbudsmanPage";
 
+let currentPath = window.location.pathname;
 function usePath() {
-  const [path, setPath] = useState(window.location.pathname);
-  useEffect(() => { const listener = () => setPath(window.location.pathname); window.addEventListener("popstate", listener); return () => window.removeEventListener("popstate", listener); }, []);
-  const navigate = (next: string) => { window.history.pushState({}, "", next); setPath(next); };
+  const [path, setPath] = useState(currentPath);
+  useEffect(() => {
+    const listener = () => {
+      const next = window.location.pathname;
+      if (next !== currentPath) {
+        if (!window.dispatchEvent(new Event("fhdod:beforeNavigate", { cancelable: true }))) {
+          window.history.pushState({}, "", currentPath);
+        } else currentPath = next;
+      }
+      setPath(currentPath);
+    };
+    window.addEventListener("popstate", listener);
+    return () => window.removeEventListener("popstate", listener);
+  }, []);
+  const navigate = (next: string) => { window.history.pushState({}, "", next); currentPath = next; setPath(next); };
   return { path, navigate };
 }
 

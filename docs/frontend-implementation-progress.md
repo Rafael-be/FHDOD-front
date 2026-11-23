@@ -8,7 +8,8 @@
 - Backend local: catálogo passou a retornar `questionVersionId`, necessário para associação; OpenAPI e teste de integração atualizados no commit `8904e76`. O teste passou no PostgreSQL descartável local.
 - Pesquisa pública corrigida para enviar `questionId` e `questionVersionId` do snapshot; adicionados renovação e encerramento.
 - Dashboard e gráficos conectados a `GET /api/analytics/dashboard`; Ouvidoria pública e administrativa conectada.
-- Gates finais do frontend: typecheck, lint, 24 testes e build aprovados; smoke HTTP real local passou com superusuário e gestor.
+- Gates finais do frontend: typecheck, lint, 25 testes e build aprovados; smoke HTTP real local passou com superusuário e gestor.
+- Auditoria final: navegação pela sidebar e histórico do navegador agora consulta o editor antes de descartar alterações locais; teste de regressão adicionado.
 - Suíte completa do backend no banco novo local: 57 suítes aprovadas, 3 falhas, 1 ignorada; 220 testes aprovados, 6 falhas, 4 ignorados. As falhas são dos testes de rascunho/publicação que usam IDs e vínculos fixos da fixture histórica, ausentes no banco novo. O teste novo do catálogo e os 10 testes OpenAPI passaram. A suíte do backend ainda não é reproduzível em banco novo sem corrigir essas fixtures.
 - Upload CSV binário e exportação foram validados por HTTP após a suíte completa (que alterou a versão vigente no banco descartável). O servidor e o cluster PostgreSQL temporário foram encerrados.
 - O Chrome não está instalado neste ambiente; inspeção visual automatizada não executada. O Vite iniciou com proxy local e foi encerrado.

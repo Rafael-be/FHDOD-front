@@ -40,8 +40,12 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    const navigate = (event: Event) => {
+      if (!window.confirm("Há alterações não salvas. Sair do editor e descartá-las?")) event.preventDefault();
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    window.addEventListener("fhdod:beforeNavigate", navigate);
+    return () => { window.removeEventListener("beforeunload", warn); window.removeEventListener("fhdod:beforeNavigate", navigate); };
   }, [dirty]);
 
   const change = (next: DraftItem[]) => { setItems(next.map((item, index) => ({ ...item, position: index + 1 }))); setDirty(true); setMessage(undefined); };
