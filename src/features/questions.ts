@@ -2,34 +2,17 @@ import { api } from "../services/http";
 
 export type QuestionKind = "sector" | "standard";
 export type QuestionScope = "sector_only" | "all_sectors" | "selected_sectors";
-
 export interface Question {
-  id: number;
-  questionKind: QuestionKind;
-  scope: QuestionScope;
-  sectorId: number | null;
-  isNps: boolean;
-  displayOrder: number;
-  deletedAt: string | null;
-  versionNumber: number;
-  text: string;
-  scaleMin: number;
-  scaleMax: number;
-  lowScoreThreshold: number;
+  id: number; questionKind: QuestionKind; scope: QuestionScope; sectorId: number | null;
+  isNps: boolean; displayOrder: number; deletedAt: string | null; versionNumber: number;
+  text: string; scaleMin: number; scaleMax: number; lowScoreThreshold: number;
 }
-
-export interface ScopedQuestionInput { text: string; scope: "all_sectors" | "selected_sectors"; sectorIds: number[]; }
+export interface ScopedQuestionInput { text: string; scope: "all_sectors" | "selected_sectors"; sectorIds: number[]; replaceGlobal?: boolean }
+export interface CatalogQuestion extends Question { associations?: { sectorId: number }[]; versionId?: number; questionVersionId?: number }
+export interface CatalogPage { items: CatalogQuestion[]; page: number; pageSize: number; total: number }
 
 export const questionsService = {
-  list(sectorId: number, includeDeleted = false) { return api.request<Question[]>(`/api/sectors/${sectorId}/questions${includeDeleted ? "?deleted=true" : ""}`); },
-  createSector(sectorId: number, text: string) { return api.request<Question>(`/api/sectors/${sectorId}/questions`, { method: "POST", body: { text } }); },
-  updateText(id: number, text: string) { return api.request<Question>(`/api/questions/${id}`, { method: "PATCH", body: { text } }); },
-  deactivate(id: number) { return api.request<void>(`/api/questions/${id}/deactivate`, { method: "POST" }); },
-  reactivate(id: number) { return api.request<Question>(`/api/questions/${id}/reactivate`, { method: "POST" }); },
-  reorderSector(sectorId: number, orderedIds: number[]) { return api.request<void>(`/api/sectors/${sectorId}/questions/reorder`, { method: "POST", body: { orderedIds } }); },
-  reorderStandard(sectorId: number, orderedIds: number[]) { return api.request<void>(`/api/sectors/${sectorId}/standard-questions/reorder`, { method: "POST", body: { orderedIds } }); },
-  createStandard(input: ScopedQuestionInput) { return api.request<Question>("/api/standard-questions", { method: "POST", body: input }); },
-  createNps(input: ScopedQuestionInput) { return api.request<Question>("/api/nps-questions", { method: "POST", body: input }); },
-  deactivateStandardAssignment(sectorId: number, questionId: number) { return api.request<void>(`/api/sectors/${sectorId}/standard-questions/${questionId}/deactivate`, { method: "POST" }); },
-  reactivateStandardAssignment(sectorId: number, questionId: number) { return api.request<void>(`/api/sectors/${sectorId}/standard-questions/${questionId}/reactivate`, { method: "POST" }); },
+  catalog(sectorId: number, page = 1) { return api.request<CatalogPage>(`/api/questions?sectorId=${sectorId}&page=${page}&pageSize=100`); },
+  createStandard(input: ScopedQuestionInput) { return api.request<Question>("/api/catalog/standard-questions", { method: "POST", body: input }); },
+  createNps(input: ScopedQuestionInput) { return api.request<Question>("/api/catalog/nps-questions", { method: "POST", body: input }); },
 };

@@ -6,7 +6,7 @@ import { sectorsService, type Sector } from "./sectors";
 import { questionsService } from "./questions";
 
 export function QuestionCreationPage({ type, onDone }: { type: "standard" | "nps"; onDone: () => void }) {
-  const [sectors, setSectors] = useState<Sector[] | null>(null); const [text, setText] = useState(""); const [scope, setScope] = useState<"all_sectors" | "selected_sectors">("all_sectors"); const [sectorIds, setSectorIds] = useState<number[]>([]); const [busy, setBusy] = useState(false); const [error, setError] = useState<string>();
+  const [sectors, setSectors] = useState<Sector[] | null>(null); const [text, setText] = useState(""); const [scope, setScope] = useState<"all_sectors" | "selected_sectors">("all_sectors"); const [sectorIds, setSectorIds] = useState<number[]>([]); const [replaceGlobal, setReplaceGlobal] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState<string>();
   useEffect(() => { sectorsService.list().then(setSectors).catch(() => setError("Não foi possível carregar os setores.")); }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -16,7 +16,7 @@ export function QuestionCreationPage({ type, onDone }: { type: "standard" | "nps
     setError(undefined);
     try {
       const input = { text: text.trim(), scope, sectorIds: scope === "all_sectors" ? [] : sectorIds };
-      if (type === "nps") await questionsService.createNps(input);
+      if (type === "nps") await questionsService.createNps({ ...input, replaceGlobal });
       else await questionsService.createStandard(input);
       onDone();
     } catch (cause) {
@@ -26,6 +26,7 @@ export function QuestionCreationPage({ type, onDone }: { type: "standard" | "nps
       setBusy(false);
     }
   };
+  if (!sectors && error) return <Alert tone="danger">{error}</Alert>;
   if (!sectors) return <LoadingState />; const isNps = type === "nps";
-  return <section><div className="fhdod-page-heading"><div><p className="eyebrow">Avaliações</p><h1>{isNps ? "Novo NPS" : "Nova pergunta padrão"}</h1><p>{isNps ? "Escala fixa de 0 a 10; o NPS é exibido por último." : "Escala fixa de 1 a 5 para setores selecionados ou todos os setores."}</p></div></div>{error && <Alert tone="danger">{error}</Alert>}<form className="fhdod-profile-card" onSubmit={submit}><label className="form-label" htmlFor="question-text">Pergunta</label><textarea id="question-text" className="form-control mb-3" rows={5} maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} required /><fieldset className="mb-3"><legend className="fs-6">Escopo</legend><label className="d-block mb-2"><input type="radio" checked={scope === "all_sectors"} onChange={() => setScope("all_sectors")} /> Todos os setores ativos</label><label className="d-block"><input type="radio" checked={scope === "selected_sectors"} onChange={() => setScope("selected_sectors")} /> Setores selecionados</label></fieldset>{scope === "selected_sectors" && <fieldset className="mb-3"><legend className="fs-6">Setores</legend>{sectors.filter((sector) => !sector.deletedAt).map((sector) => <label className="d-block" key={sector.id}><input type="checkbox" checked={sectorIds.includes(sector.id)} onChange={() => setSectorIds((current) => current.includes(sector.id) ? current.filter((id) => id !== sector.id) : [...current, sector.id])} /> {sector.name} ({sector.code})</label>)}</fieldset>}<Button type="submit" loading={busy}>Criar pergunta</Button></form></section>;
+  return <section><div className="fhdod-page-heading"><div><p className="eyebrow">Avaliações</p><h1>{isNps ? "Novo NPS" : "Nova pergunta padrão"}</h1><p>Cadastro no catálogo. Revise o rascunho do setor e publique manualmente.</p></div></div>{error && <Alert tone="danger">{error}</Alert>}<form className="fhdod-profile-card" onSubmit={submit}><label className="form-label" htmlFor="question-text">Pergunta</label><textarea id="question-text" className="form-control mb-3" rows={5} maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} required /><fieldset className="mb-3"><legend className="fs-6">Escopo</legend><label className="d-block mb-2"><input type="radio" checked={scope === "all_sectors"} onChange={() => setScope("all_sectors")} /> Todos os setores ativos</label><label className="d-block"><input type="radio" checked={scope === "selected_sectors"} onChange={() => setScope("selected_sectors")} /> Setores selecionados</label></fieldset>{scope === "selected_sectors" && <fieldset className="mb-3"><legend className="fs-6">Setores</legend>{sectors.filter((sector) => !sector.deletedAt).map((sector) => <label className="d-block" key={sector.id}><input type="checkbox" checked={sectorIds.includes(sector.id)} onChange={() => setSectorIds((current) => current.includes(sector.id) ? current.filter((id) => id !== sector.id) : [...current, sector.id])} /> {sector.name} ({sector.code})</label>)}</fieldset>}{isNps && scope === "all_sectors" && <label className="d-block mb-3"><input type="checkbox" checked={replaceGlobal} onChange={(event) => setReplaceGlobal(event.target.checked)} /> Substituir NPS global atual no catálogo</label>}<Button type="submit" loading={busy}>Cadastrar no catálogo</Button></form></section>;
 }
