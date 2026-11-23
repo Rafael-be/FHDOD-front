@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Button } from "../ui/Button";
 
 interface AppLayoutProps {
@@ -40,6 +40,11 @@ function NavigationIcon({ name }: { name: string }) {
 }
 
 export function AppLayout({ children, currentPath, onNavigate, onLogout, canManage }: AppLayoutProps) {
+  const navigationRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!window.matchMedia?.("(max-width: 1023px)").matches) return;
+    navigationRef.current?.querySelector('button[aria-current="page"]')?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  }, [currentPath]);
   const navigateSafely = (path: string) => {
     if (window.dispatchEvent(new Event("fhdod:beforeNavigate", { cancelable: true }))) onNavigate(path);
   };
@@ -49,7 +54,7 @@ export function AppLayout({ children, currentPath, onNavigate, onLogout, canMana
     <div className="fhdod-layout">
       <aside className="fhdod-sidebar">
         <button className="fhdod-brand" type="button" onClick={() => navigateSafely("/")} aria-label="FHDOD, ir para indicadores">FHDOD</button>
-        <nav aria-label="Navegação principal">
+        <nav ref={navigationRef} aria-label="Navegação principal">
           {navigation.filter((group) => !group.managed || canManage).map((group) => (
             <div className="fhdod-nav-group" key={group.label}>
               <span className="fhdod-nav-label">{group.label}</span>

@@ -72,7 +72,7 @@ O contorno claro separa superfícies e não comunica sozinho o estado de um camp
 - Tabelas têm cabeçalho neutro, linhas densas e rolagem própria em telas estreitas.
 - O dashboard mostra três indicadores principais, uma faixa compacta de dados de apoio e painéis de gráficos. Os filtros não alteram a escala dos gráficos.
 - A pesquisa pública usa largura máxima de 780 px, progresso visível e opções responsivas. A confirmação da nota é a ação dominante.
-- A navegação lateral mantém a página atual marcada com `aria-current="page"`; no mobile vira uma faixa horizontal com rolagem própria.
+- A navegação lateral mantém a página atual marcada com `aria-current="page"`; no mobile vira uma faixa horizontal com rolagem própria e posiciona o item ativo na área visível.
 - Ícones lineares de 18 px e traço de 1,8 px foram adicionados à navegação para facilitar a busca visual; os labels permanecem visíveis e os SVGs são decorativos para leitores de tela. Ícones nativos continuam em calendário, seleção, arquivo e fechamento de modal. Setas de ordenação no editor permanecem com nomes acessíveis.
 
 ## Movimento
