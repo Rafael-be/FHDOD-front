@@ -18,7 +18,8 @@ describe("submissionsService", () => {
   it("envia a capability da sessão ao registrar uma resposta", async () => {
     const request = vi.spyOn(api, "request").mockResolvedValue(undefined);
     await submissionsService.answer("session-1", "token-1", {
-      sessionQuestionId: 9,
+      questionId: 9,
+      questionVersionId: 18,
       status: "answered",
       score: 10,
     });
@@ -27,7 +28,16 @@ describe("submissionsService", () => {
       csrf: false,
       refreshOnUnauthorized: false,
       headers: { "x-session-capability": "token-1" },
-      body: { sessionQuestionId: 9, status: "answered", score: 10 },
+      body: { questionId: 9, questionVersionId: 18, status: "answered", score: 10 },
     });
+  });
+  it("renova e encerra apenas a sessão identificada pela capability", async () => {
+    const request = vi.spyOn(api, "request").mockResolvedValue(undefined);
+    await submissionsService.refresh("session-1", "token-1");
+    await submissionsService.close("session-1", "token-1");
+    for (const [path, options] of request.mock.calls) {
+      expect(path).toMatch(/^\/api\/public\/submissions\/session-1\/(refresh|close)$/);
+      expect(options).toMatchObject({ method: "POST", csrf: false, refreshOnUnauthorized: false, headers: { "x-session-capability": "token-1" } });
+    }
   });
 });

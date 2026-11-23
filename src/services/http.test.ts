@@ -43,4 +43,14 @@ describe("HttpClient", () => {
     await expect(client.request("/api/sectors")).rejects.toMatchObject({ status: 401 });
     expect(expired).toHaveBeenCalledOnce();
   });
+  it("aceita o contrato raiz de refresh e repete a chamada após 401", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ error: { code: "UNAUTHENTICATED" } }, 401))
+      .mockResolvedValueOnce(response({ user: { id: 1 }, csrfToken: "csrf-renovado" }))
+      .mockResolvedValueOnce(response({ data: [{ id: 2 }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new HttpClient("http://api.test");
+    await expect(client.request("/api/sectors")).resolves.toEqual([{ id: 2 }]);
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(["http://api.test/api/sectors", "http://api.test/api/auth/refresh", "http://api.test/api/sectors"]);
+  });
 });
