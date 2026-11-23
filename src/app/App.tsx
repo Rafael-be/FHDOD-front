@@ -9,6 +9,9 @@ import { SectorsPage } from "../features/SectorsPage";
 import { SectorQuestionsPage } from "../features/SectorQuestionsPage";
 import { EditPage, PublicPage } from "../features/PagesPage";
 import { QuestionCreationPage } from "../features/QuestionCreationPage";
+import { PublicSubmissionPage } from "../features/PublicSubmissionPage";
+import { ShiftSheetsPage } from "../features/ShiftSheetsPage";
+import { AuditPage } from "../features/AuditPage";
 
 function usePath() {
   const [path, setPath] = useState(window.location.pathname);
@@ -33,6 +36,8 @@ function AuthenticatedApp() {
   if (path === "/perguntas-padrao/nova") return user.role === "superuser" ? shell(<QuestionCreationPage type="standard" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/nps/novo") return user.role === "superuser" ? shell(<QuestionCreationPage type="nps" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
+  if (path === "/planilhas-turnos") return user.role === "superuser" ? shell(<ShiftSheetsPage />) : shell(<ErrorState />);
+  if (path === "/auditoria") return user.role === "superuser" ? shell(<AuditPage />) : shell(<ErrorState />);
   if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
   if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
@@ -41,7 +46,9 @@ function AuthenticatedApp() {
 
 function Router() {
   const { status, restore, sessionExpired } = useAuth(); const { path, navigate } = usePath();
-  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
+  const submissionRoute = path.match(/^\/avaliacao\/(\d+)$/);
+  if (submissionRoute) return <PublicSubmissionPage sectorId={Number(submissionRoute[1])} />;
+  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd", "/planilhas-turnos", "/auditoria"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
   if (status === "checking") return <main className="fhdod-auth-page"><LoadingState /></main>;
   if (status === "unavailable") return <main className="fhdod-auth-page"><ErrorState /><button className="btn fhdod-button fhdod-button--primary mt-3" type="button" onClick={() => { void restore(); }}>Tentar novamente</button></main>;
   if (status === "anonymous") {
