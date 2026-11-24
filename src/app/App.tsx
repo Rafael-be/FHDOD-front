@@ -13,6 +13,7 @@ import { ShiftSheetsPage } from "../features/ShiftSheetsPage";
 import { AuditPage } from "../features/AuditPage";
 import { AnalyticsPage } from "../features/AnalyticsPage";
 import { OmbudsmanPage, PublicOmbudsmanPage } from "../features/OmbudsmanPage";
+import { FhdodLogo } from "../components/branding/FhdodLogo";
 
 let currentPath = window.location.pathname;
 function usePath() {
@@ -72,7 +73,7 @@ function Router() {
   if (status === "anonymous") {
     if (path === "/lgpd") return <main className="fhdod-auth-page"><PublicPage /></main>;
     if (path === "/trocar-senha-temporaria" || path === "/conta") return <main className="fhdod-auth-page"><EmptyState title="Sua sessão terminou">Entre novamente para continuar.</EmptyState></main>;
-    return <main className="fhdod-auth-page"><LoginForm onSuccess={() => navigate("/")} sessionExpired={sessionExpired} /></main>;
+    return <main className="fhdod-auth-page"><FhdodLogo className="fhdod-auth-logo" /><LoginForm onSuccess={() => navigate("/")} sessionExpired={sessionExpired} /></main>;
   }
   return <AuthenticatedApp />;
 }

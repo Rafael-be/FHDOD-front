@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { FhdodLogo } from "../branding/FhdodLogo";
 import { Button } from "../ui/Button";
 
 interface AppLayoutProps {
@@ -53,7 +54,7 @@ export function AppLayout({ children, currentPath, onNavigate, onLogout, canMana
   return (
     <div className="fhdod-layout">
       <aside className="fhdod-sidebar">
-        <button className="fhdod-brand" type="button" onClick={() => navigateSafely("/")} aria-label="FHDOD, ir para indicadores">FHDOD</button>
+        <button className="fhdod-brand" type="button" onClick={() => navigateSafely("/")} aria-label="FHDOD, ir para indicadores"><FhdodLogo size="compact" /></button>
         <nav ref={navigationRef} aria-label="Navegação principal">
           {navigation.filter((group) => !group.managed || canManage).map((group) => (
             <div className="fhdod-nav-group" key={group.label}>
