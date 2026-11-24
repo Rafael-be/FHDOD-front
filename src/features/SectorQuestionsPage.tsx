@@ -11,6 +11,7 @@ const requirementNames: Record<string, string> = {
 };
 const requirement = (value: string) => requirementNames[value] ?? value;
 const errorMessage = (cause: unknown) => cause instanceof ApiError ? cause.message : "Não foi possível concluir a operação.";
+const formatPublishedAt = (value: string) => new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 
 export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageStandards?: boolean }) {
   const [draft, setDraft] = useState<FormDraft | null>(null);
@@ -134,8 +135,8 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       <Button type="button" disabled={busy || dirty || conflict || draft.draftStatus !== "drafting" || readiness?.status !== "active"} onClick={() => { void publish(); }}>Publicar</Button></div>
     {readiness && <Alert tone={readiness.status === "active" ? "success" : "warning"}>{readiness.status === "active" ? "Configuração pronta para publicação." : `Pendente: ${readiness.missingRequirements.map(requirement).join(", ")}`}</Alert>}
     <section className="fhdod-profile-card mt-3"><h2 className="h5">Histórico de versões</h2>
-      {versions.length === 0 ? <p>Nenhuma versão publicada.</p> : versions.map((version) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={version.id}><span>Versão {version.versionNumber}{version.current ? " · vigente" : ""}</span><Button type="button" variant="tertiary" onClick={() => { void run(async () => { setSelectedVersion(await formDraftService.version(sectorId, version.id)); }); }}>Visualizar</Button></div>)}
-      {selectedVersion && <div className="mt-3"><h3 className="h6">Versão ID {selectedVersion.versionId}</h3><ol>{selectedVersion.items.map((item) => <li key={item.questionId}>{item.text}</li>)}</ol><Button type="button" disabled={busy || dirty || conflict} onClick={() => { void restore(selectedVersion.versionId); }}>Restaurar para rascunho</Button></div>}
+      {versions.length === 0 ? <p>Nenhuma versão publicada.</p> : versions.map((version) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={version.id}><span>Versão {version.versionNumber}{version.current ? " · vigente" : ""}<small className="d-block text-secondary">Publicada em {formatPublishedAt(version.publishedAt)}</small></span><Button type="button" variant="tertiary" onClick={() => { void run(async () => { setSelectedVersion(await formDraftService.version(sectorId, version.id)); }); }}>Visualizar</Button></div>)}
+      {selectedVersion && <div className="mt-3"><h3 className="h6">Versão {versions.find((version) => version.id === selectedVersion.versionId)?.versionNumber ?? selectedVersion.versionId}</h3><QuestionPreview items={selectedVersion.items} /><Button type="button" disabled={busy || dirty || conflict} onClick={() => { void restore(selectedVersion.versionId); }}>Restaurar para rascunho</Button></div>}
     </section>
   </section>;
 }
