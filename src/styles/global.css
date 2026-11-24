@@ -76,6 +76,9 @@ small, .small { font-size: .875rem; }
 .fhdod-logo--compact { max-width: 178px; }
 .fhdod-auth-logo { width: min(100%, 280px); margin: 0 auto var(--space-5); }
 .fhdod-public-logo { width: min(100%, 230px); margin: 0 auto var(--space-5); }
+.fhdod-character-count { color: var(--color-text-muted); font-size: .8rem; font-weight: 700; }
+.fhdod-character-count--limit, .fhdod-character-warning { color: var(--color-primary-active); font-weight: 700; }
+.fhdod-character-hint, .fhdod-character-warning { min-height: 1.4em; margin-bottom: var(--space-3); font-size: .8rem; }
 .fhdod-sidebar nav { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-6); }
 .fhdod-nav-group { display: flex; flex-direction: column; gap: var(--space-1); }
 .fhdod-nav-label { margin: var(--space-5) var(--space-3) var(--space-2); color: var(--color-text-muted); font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }

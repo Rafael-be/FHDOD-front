@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "../components/ui/Button";
 import { Alert, EmptyState, LoadingState } from "../components/ui/Feedback";
+import { BaseModal } from "../components/ui/BaseModal";
 import { ApiError } from "../services/http";
 import { sectorsService, type Sector } from "./sectors";
-import { ombudsmanService, type Ticket, type TicketPage, type TicketStatus, type TicketType } from "./ombudsman";
+import { formatPhone, MAX_PUBLIC_MESSAGE_LENGTH, ombudsmanService, phonePayload, type Ticket, type TicketPage, type TicketStatus, type TicketType } from "./ombudsman";
 import { pagesService, type ContentPage } from "./pages";
 
 const types: Record<TicketType, string> = { complaint: "Reclamação", compliment: "Elogio", suggestion_other: "Sugestão ou outro" };
@@ -14,30 +15,37 @@ const nextStatuses: Record<TicketStatus, TicketStatus[]> = {
 };
 const messageOf = (cause: unknown) => cause instanceof ApiError ? cause.message : "Não foi possível concluir a solicitação.";
 
-export function PublicOmbudsmanPage({ sectorId: routeSectorId }: { sectorId?: number }) {
-  const [sectorId, setSectorId] = useState(routeSectorId ? String(routeSectorId) : ""); const [ticketType, setTicketType] = useState<TicketType>("complaint");
+export function PublicOmbudsmanPage({ sectorId: routeSectorId, modal = false, onClose }: { sectorId?: number; modal?: boolean; onClose?: () => void }) {
+  const [sectorId, setSectorId] = useState(routeSectorId ? String(routeSectorId) : "");
+  const [ticketType, setTicketType] = useState<TicketType>("complaint");
   const [body, setBody] = useState(""); const [phone, setPhone] = useState(""); const [accepted, setAccepted] = useState(false);
   const [policy, setPolicy] = useState<ContentPage | null>(null);
-  const [busy, setBusy] = useState(false); const [error, setError] = useState<string>(); const [receipt, setReceipt] = useState<number>();
+  const [busy, setBusy] = useState(false); const [error, setError] = useState<string>(); const [receipt, setReceipt] = useState(false);
   useEffect(() => { pagesService.get("lgpd").then(setPolicy).catch(() => setError("A política de privacidade não está disponível para leitura.")); }, []);
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); if (!accepted) { setError("Leia e aceite a política de privacidade."); return; }
+    event.preventDefault(); if (!accepted) { setError("Leia e aceite a Política de Privacidade."); return; }
+    if (body.length > MAX_PUBLIC_MESSAGE_LENGTH) { setError("A mensagem excede o limite permitido."); return; }
     setBusy(true); setError(undefined);
-    try { const result = await ombudsmanService.create({ sectorId: Number(sectorId), ticketType, body: body.trim(), phone: phone.trim() || undefined, policyAccepted: true }); setReceipt(result.id); setBody(""); setPhone(""); setAccepted(false); }
-    catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
+    try {
+      await ombudsmanService.create({ sectorId: Number(sectorId), ticketType, body: body.trim(), phone: phonePayload(phone), policyAccepted: true });
+      setReceipt(true); setBody(""); setPhone(""); setAccepted(false);
+    } catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
   };
-  return <main className="fhdod-auth-page"><section className="fhdod-profile-card mx-auto"><p className="eyebrow">FHDOD</p><h1>Ouvidoria</h1>
-    <p>Envie uma manifestação sobre sua experiência. O telefone é opcional e permite contato posterior.</p>
-    {receipt && <Alert tone="success">Manifestação registrada. Protocolo: {receipt}.</Alert>}{error && <Alert tone="danger">{error}</Alert>}
-    <form onSubmit={(event) => { void submit(event); }}>
-      <label className="form-label" htmlFor="ticket-sector">Código do setor</label><input id="ticket-sector" className="form-control mb-3" type="number" min="1" value={sectorId} onChange={(event) => setSectorId(event.target.value)} readOnly={Boolean(routeSectorId)} required />
-      <label className="form-label" htmlFor="ticket-type">Tipo</label><select id="ticket-type" className="form-select mb-3" value={ticketType} onChange={(event) => setTicketType(event.target.value as TicketType)}>{Object.entries(types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-      <label className="form-label" htmlFor="ticket-body">Mensagem</label><textarea id="ticket-body" className="form-control mb-3" maxLength={300} rows={5} value={body} onChange={(event) => setBody(event.target.value)} required />
-      <label className="form-label" htmlFor="ticket-phone">Telefone com DDD (opcional)</label><input id="ticket-phone" className="form-control mb-3" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} />
-      <details className="mb-3"><summary>Política de privacidade</summary>{policy ? <div className="p-2" style={{ whiteSpace: "pre-wrap" }}><h2 className="h5">{policy.title}</h2>{policy.content}</div> : <p>Carregando política...</p>}</details>
-      <label className="d-block mb-3"><input type="checkbox" checked={accepted} disabled={!policy} onChange={(event) => setAccepted(event.target.checked)} required /> Li e aceito a política de privacidade vigente.</label>
-      <Button type="submit" loading={busy} disabled={!policy}>Enviar manifestação</Button>
-    </form></section></main>;
+  const form = <form onSubmit={(event) => { void submit(event); }}>
+    {receipt && <Alert tone="success">Manifestação registrada com sucesso.</Alert>}
+    {error && <Alert tone="danger">{error}</Alert>}
+    <label className="form-label" htmlFor="ticket-sector">Código do setor</label><input id="ticket-sector" className="form-control mb-3" type="number" min="1" value={sectorId} onChange={(event) => setSectorId(event.target.value)} readOnly={Boolean(routeSectorId)} required />
+    <label className="form-label" htmlFor="ticket-type">Tipo</label><select id="ticket-type" className="form-select mb-3" value={ticketType} onChange={(event) => setTicketType(event.target.value as TicketType)}>{Object.entries(types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+    <div className="d-flex justify-content-between align-items-baseline gap-2"><label className="form-label mb-2" htmlFor="ticket-body">Mensagem</label><span className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-count fhdod-character-count--limit" : "fhdod-character-count"} aria-live="polite">{body.length}/{MAX_PUBLIC_MESSAGE_LENGTH}</span></div>
+    <textarea id="ticket-body" className="form-control mb-1" maxLength={MAX_PUBLIC_MESSAGE_LENGTH} rows={5} value={body} onChange={(event) => setBody(event.target.value)} aria-describedby="ticket-body-limit" required />
+    <div id="ticket-body-limit" className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-warning" : "fhdod-character-hint"} aria-live="polite">{body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "Limite máximo de caracteres atingido." : ""}</div>
+    <label className="form-label" htmlFor="ticket-phone">Telefone com DDD (opcional)</label><input id="ticket-phone" className="form-control mb-3" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} placeholder="(XX) XXXXX-XXXX" />
+    <div className="mb-3"><p className="form-label mb-2">Política de Privacidade</p><p className="small text-secondary mb-2">Leia a <a href="/lgpd">Política de Privacidade</a> antes de enviar sua manifestação.</p>{!policy && <p className="small text-secondary mb-0">Carregando política...</p>}</div>
+    <label className="d-block mb-3"><input type="checkbox" checked={accepted} disabled={!policy || busy} onChange={(event) => setAccepted(event.target.checked)} required /> <span>Li e aceito a <a href="/lgpd" onClick={(event) => event.stopPropagation()}>Política de Privacidade</a>.</span></label>
+    <Button type="submit" loading={busy} disabled={!policy}>Enviar manifestação</Button>
+  </form>;
+  if (modal) return <BaseModal open title="Ouvidoria" onRequestClose={onClose} busy={busy}>{form}</BaseModal>;
+  return <main className="fhdod-auth-page"><section className="fhdod-profile-card mx-auto"><p className="eyebrow">FHDOD</p><h1>Ouvidoria</h1><p>Envie uma manifestação sobre sua experiência. O telefone é opcional e permite contato posterior.</p>{form}</section></main>;
 }
 
 export function OmbudsmanPage() {
@@ -58,6 +66,10 @@ export function OmbudsmanPage() {
     try { await ombudsmanService.updateStatus(selected.id, next); await detail(selected.id); await load(); }
     catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
   };
+  const detailContent: ReactNode = selected && <>
+    <p><strong>{types[selected.ticketType]}</strong> · {statuses[selected.status]}</p><p style={{ whiteSpace: "pre-wrap" }}>{selected.body}</p><p>Telefone: {selected.phone ? formatPhone(selected.phone) : "não informado"}</p><p className="small text-secondary">Registrada em {new Date(selected.occurredAt).toLocaleString("pt-BR")}</p>
+    <div className="d-flex flex-wrap gap-2">{nextStatuses[selected.status].filter((next) => next !== "contact_attempt" || Boolean(selected.phone)).map((next) => <Button key={next} type="button" variant="secondary" disabled={busy} onClick={() => { void update(next); }}>{statuses[next]}</Button>)}</div>
+  </>;
   return <section><div className="fhdod-page-heading"><div><p className="eyebrow">Administração</p><h1>Ouvidoria</h1><p>Consulte manifestações e acompanhe o atendimento.</p></div></div>
     {error && <Alert tone="danger">{error}</Alert>}
     <form className="fhdod-profile-card mb-3 d-flex flex-wrap gap-2 align-items-end" onSubmit={(event) => { event.preventDefault(); void load(1); }}>
@@ -70,8 +82,6 @@ export function OmbudsmanPage() {
     {page && (page.items.length === 0 ? <EmptyState title="Sem manifestações">Nenhum registro corresponde aos filtros.</EmptyState> :
       <div className="table-responsive bg-white rounded-3 border"><table className="table mb-0"><thead><tr><th>Protocolo</th><th>Setor</th><th>Tipo</th><th>Status</th><th>Data</th><th>Ação</th></tr></thead><tbody>{page.items.map((ticket) => <tr key={ticket.id}><td>{ticket.id}</td><td>{sectors.find((sector) => sector.id === ticket.sectorId)?.name ?? ticket.sectorId}</td><td>{types[ticket.ticketType]}</td><td>{statuses[ticket.status]}</td><td>{new Date(ticket.occurredAt).toLocaleString("pt-BR")}</td><td><Button type="button" variant="tertiary" onClick={() => { void detail(ticket.id); }}>Detalhes</Button></td></tr>)}</tbody></table></div>)}
     {page && page.total > page.pageSize && <div className="d-flex gap-2 align-items-center mt-3"><Button type="button" variant="secondary" disabled={busy || pageNumber <= 1} onClick={() => { void load(pageNumber - 1); }}>Anterior</Button><span>Página {pageNumber} de {Math.ceil(page.total / page.pageSize)}</span><Button type="button" variant="secondary" disabled={busy || pageNumber * page.pageSize >= page.total} onClick={() => { void load(pageNumber + 1); }}>Próxima</Button></div>}
-    {selected && <section className="fhdod-profile-card mt-3"><h2 className="h5">Manifestação {selected.id}</h2><p><strong>{types[selected.ticketType]}</strong> · {statuses[selected.status]}</p><p style={{ whiteSpace: "pre-wrap" }}>{selected.body}</p><p>Telefone: {selected.phone ?? "não informado"}</p><p className="small text-secondary">Registrada em {new Date(selected.occurredAt).toLocaleString("pt-BR")}</p>
-      <div className="d-flex flex-wrap gap-2">{nextStatuses[selected.status].filter((next) => next !== "contact_attempt" || Boolean(selected.phone)).map((next) => <Button key={next} type="button" variant="secondary" disabled={busy} onClick={() => { void update(next); }}>{statuses[next]}</Button>)}<Button type="button" variant="tertiary" onClick={() => setSelected(null)}>Fechar</Button></div>
-    </section>}
+    <BaseModal open={Boolean(selected)} title="Detalhes da manifestação" onRequestClose={() => setSelected(null)} busy={busy}>{detailContent}</BaseModal>
   </section>;
 }
