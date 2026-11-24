@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { ApiError } from "../services/http";
-import { formDraftService, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
+import { formDraftService, normalizeDraftItems, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
 import { questionsService, type CatalogQuestion } from "./questions";
+import { QuestionPreview } from "./QuestionPreview";
 
 const requirementNames: Record<string, string> = {
   shift_ranges: "planilha de turnos", nps: "pergunta NPS", standard_questions: "pergunta padrão",
@@ -32,7 +33,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       formDraftService.get(sectorId), formDraftService.readiness(sectorId),
       formDraftService.history(sectorId), questionsService.catalog(sectorId),
     ]);
-    setDraft(state); setItems(state.items); setReadiness(ready); setVersions(history);
+    setDraft(state); setItems(normalizeDraftItems(state.items)); setReadiness(ready); setVersions(history);
     setCatalog(available.items.filter((item) => !item.deletedAt)); setCatalogPage(1); setCatalogTotal(available.total);
     setDirty(false); setConflict(false);
   }, [sectorId]);
@@ -48,10 +49,10 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
     return () => { window.removeEventListener("beforeunload", warn); window.removeEventListener("fhdod:beforeNavigate", navigate); };
   }, [dirty]);
 
-  const change = (next: DraftItem[]) => { setItems(next.map((item, index) => ({ ...item, position: index + 1 }))); setDirty(true); setMessage(undefined); };
+  const change = (next: DraftItem[]) => { setItems(normalizeDraftItems(next)); setDirty(true); setMessage(undefined); };
   const move = (index: number, delta: number) => {
     const copy = [...items]; const target = index + delta;
-    if (target < 0 || target >= copy.length) return;
+    if (target < 0 || target >= copy.length || copy[index].isNps || copy[target].isNps) return;
     [copy[index], copy[target]] = [copy[target], copy[index]]; change(copy);
   };
   const run = async (operation: () => Promise<void>) => {
@@ -109,8 +110,8 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       {!items.length && <EmptyState title="Sem perguntas">Adicione uma pergunta para preparar o formulário.</EmptyState>}
       {items.map((item, index) => <div className="border-bottom py-3" key={item.questionId ?? `new-${index}`}>
         <div className="d-flex justify-content-between gap-2"><strong>{index + 1}. {item.isNps ? "NPS" : item.questionKind === "standard" ? "Padrão" : "Setorial"}</strong>
-          <div className="d-flex flex-wrap gap-1"><Button type="button" variant="tertiary" disabled={busy || index === 0} aria-label={`Subir pergunta ${index + 1}`} onClick={() => move(index, -1)}>↑</Button>
-            <Button type="button" variant="tertiary" disabled={busy || index === items.length - 1} aria-label={`Descer pergunta ${index + 1}`} onClick={() => move(index, 1)}>↓</Button>
+          <div className="d-flex flex-wrap gap-1"><Button type="button" variant="tertiary" disabled={busy || item.isNps || index === 0} aria-label={`Subir pergunta ${index + 1}`} onClick={() => move(index, -1)}>↑</Button>
+            <Button type="button" variant="tertiary" disabled={busy || item.isNps || index === items.length - 1 || items[index + 1]?.isNps} aria-label={`Descer pergunta ${index + 1}`} onClick={() => move(index, 1)}>↓</Button>
             <Button type="button" variant="destructive" disabled={busy} onClick={() => change(items.filter((_, position) => position !== index))}>Remover</Button></div></div>
         <label className="form-label" htmlFor={`draft-question-${index}`}>Texto da pergunta</label>
         <textarea id={`draft-question-${index}`} className="form-control" maxLength={2000} rows={2} value={item.text} disabled={!item.canEditContent && item.questionId !== null}
@@ -118,6 +119,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
         {!item.canEditContent && item.questionId !== null && <small className="text-secondary">Conteúdo protegido: {item.editRestrictionReason ?? "sem permissão"}</small>}
       </div>)}
     </section>
+    <QuestionPreview items={items} />
     <section className="fhdod-profile-card mb-3"><h2 className="h5">Adicionar pergunta setorial</h2>
       <label className="form-label" htmlFor="new-sector-question">Texto</label><textarea id="new-sector-question" className="form-control mb-2" maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} />
       <Button type="button" disabled={!text.trim() || busy} onClick={() => { change([...items.filter((item) => !item.isNps), { questionId: null, sourceQuestionVersionId: null, questionKind: "sector", isNps: false, text: text.trim(), position: items.length + 1, canEditContent: true }, ...items.filter((item) => item.isNps)]); setText(""); }}>Adicionar ao rascunho</Button>

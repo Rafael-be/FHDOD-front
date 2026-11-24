@@ -16,6 +16,10 @@ export interface DraftReadiness {
 }
 export interface FormVersion { id: number; versionNumber: number; publishedAt: string; current: boolean; questionCount?: number }
 export interface VersionDetail { versionId: number; items: (DraftItem & { questionVersionId: number })[] }
+export function normalizeDraftItems(items: DraftItem[]): DraftItem[] {
+  return [...items.filter((item) => !item.isNps), ...items.filter((item) => item.isNps)]
+    .map((item, index) => ({ ...item, position: index + 1 }));
+}
 const path = (sectorId: number) => `/api/sectors/${sectorId}`;
 export const formDraftService = {
   get: (sectorId: number) => api.request<FormDraft>(`${path(sectorId)}/form-draft`),

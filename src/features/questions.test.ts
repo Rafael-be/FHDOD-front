@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../services/http";
 import { questionsService } from "./questions";
-import { formDraftService } from "./formDraft";
+import { formDraftService, normalizeDraftItems } from "./formDraft";
 
 describe("formulários e catálogo", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -27,5 +27,13 @@ describe("formulários e catálogo", () => {
     await formDraftService.restore(3, 8, 0);
     expect(request).toHaveBeenNthCalledWith(1, "/api/sectors/3/form-draft", { method: "DELETE", body: { expectedRevision: 4 } });
     expect(request).toHaveBeenNthCalledWith(2, "/api/sectors/3/form-versions/8/restore", { method: "POST", body: { expectedRevision: 0 } });
+  });
+  it("keeps NPS at the end of a draft composition", () => {
+    const items = normalizeDraftItems([
+      { questionId: 9, sourceQuestionVersionId: 9, questionKind: "standard", isNps: true, text: "NPS", position: 1 },
+      { questionId: 4, sourceQuestionVersionId: 4, questionKind: "standard", isNps: false, text: "Service", position: 2 },
+    ]);
+    expect(items.map((item) => item.text)).toEqual(["Service", "NPS"]);
+    expect(items.map((item) => item.position)).toEqual([1, 2]);
   });
 });
