@@ -1,5 +1,14 @@
 # Progresso da conclusão do frontend
 
+## 2026-11-24
+
+- O editor administrativo de formulários por setor passou a exibir uma pré-visualização baseada diretamente na composição do rascunho, sem criar submissões.
+- A composição normaliza perguntas comuns antes do NPS, inclusive ao carregar o rascunho e ao alterar sua ordem.
+- O histórico de versões exibe a data de publicação e permite visualizar a versão com a mesma prévia antes de restaurá-la para o rascunho.
+- O editor identifica o setor selecionado por nome e código, preservando o ID como fallback para acessos diretos.
+- Validação completa do frontend: 14 suítes e 31 testes aprovados, lint, typecheck e build de produção aprovados.
+- O typecheck foi executado com cache local no workspace porque o caminho `/tmp` configurado nos tsconfigs não é gravável neste ambiente. Os avisos de `act(...)` do jsdom permanecem apenas como warnings de teste.
+
 ## 2026-11-23
 
 - Base: `feature/formularios-perguntas` incorporou `origin/feat/backend-develop-integration` em `feature/frontend-completion`, incluindo pesquisa pública, turnos e auditoria.
