@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { ApiError } from "../services/http";
+import { sectorsService, type Sector } from "./sectors";
 import { formDraftService, normalizeDraftItems, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
 import { questionsService, type CatalogQuestion } from "./questions";
 import { QuestionPreview } from "./QuestionPreview";
@@ -15,6 +16,7 @@ const formatPublishedAt = (value: string) => new Intl.DateTimeFormat("pt-BR", { 
 
 export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageStandards?: boolean }) {
   const [draft, setDraft] = useState<FormDraft | null>(null);
+  const [sector, setSector] = useState<Sector | null>(null);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [readiness, setReadiness] = useState<DraftReadiness | null>(null);
   const [versions, setVersions] = useState<FormVersion[]>([]);
@@ -30,11 +32,12 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   const [dirty, setDirty] = useState(false);
 
   const load = useCallback(async () => {
-    const [state, ready, history, available] = await Promise.all([
+    const [state, ready, history, available, sectors] = await Promise.all([
       formDraftService.get(sectorId), formDraftService.readiness(sectorId),
       formDraftService.history(sectorId), questionsService.catalog(sectorId),
+      sectorsService.list(),
     ]);
-    setDraft(state); setItems(normalizeDraftItems(state.items)); setReadiness(ready); setVersions(history);
+    setDraft(state); setSector(sectors.find((item) => item.id === sectorId) ?? null); setItems(normalizeDraftItems(state.items)); setReadiness(ready); setVersions(history);
     setCatalog(available.items.filter((item) => !item.deletedAt)); setCatalogPage(1); setCatalogTotal(available.total);
     setDirty(false); setConflict(false);
   }, [sectorId]);
@@ -103,6 +106,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
     <div className="fhdod-page-heading"><div><p className="eyebrow">Setor {sectorId}</p><h1>Editor do formulário</h1>
       <p>Vigente: {draft.publishedVersionId ? `versão ID ${draft.publishedVersionId}` : "sem publicação"} · Rascunho: {draft.draftStatus === "drafting" ? `revisão ${draft.revision}` : "nenhum"}</p>
     </div></div>
+    <p className="text-secondary">Setor selecionado: <strong>{sector?.name ?? sectorId}</strong>{sector?.code ? ` (${sector.code})` : ""}</p>
     {message && <Alert tone="success">{message}</Alert>}
     {error && <Alert tone="danger">{error}</Alert>}
     {conflict && <Alert tone="warning">Outra alteração foi salva. Sua edição local continua na tela. <Button type="button" variant="secondary" onClick={() => { if (window.confirm("Descartar a edição local e carregar a revisão mais recente?")) void load().catch((cause) => setError(errorMessage(cause))); }}>Recarregar revisão</Button></Alert>}
