@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AppLayout } from "../components/layout/AppLayout";
-import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
-import { StatusBadge } from "../components/ui/StatusBadge";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { ChangeEmailForm, LoginForm, PasswordForm } from "../features/auth/AuthForms";
 import { ManagersPage } from "../features/ManagersPage";
@@ -10,18 +9,35 @@ import { SectorQuestionsPage } from "../features/SectorQuestionsPage";
 import { EditPage, PublicPage } from "../features/PagesPage";
 import { QuestionCreationPage } from "../features/QuestionCreationPage";
 import { PublicSubmissionPage } from "../features/PublicSubmissionPage";
+import { ShiftSheetsPage } from "../features/ShiftSheetsPage";
+import { AuditPage } from "../features/AuditPage";
+import { AnalyticsPage } from "../features/AnalyticsPage";
+import { OmbudsmanPage, PublicOmbudsmanPage } from "../features/OmbudsmanPage";
 
+let currentPath = window.location.pathname;
 function usePath() {
-  const [path, setPath] = useState(window.location.pathname);
-  useEffect(() => { const listener = () => setPath(window.location.pathname); window.addEventListener("popstate", listener); return () => window.removeEventListener("popstate", listener); }, []);
-  const navigate = (next: string) => { window.history.pushState({}, "", next); setPath(next); };
+  const [path, setPath] = useState(currentPath);
+  useEffect(() => {
+    const listener = () => {
+      const next = window.location.pathname;
+      if (next !== currentPath) {
+        if (!window.dispatchEvent(new Event("fhdod:beforeNavigate", { cancelable: true }))) {
+          window.history.pushState({}, "", currentPath);
+        } else currentPath = next;
+      }
+      setPath(currentPath);
+    };
+    window.addEventListener("popstate", listener);
+    return () => window.removeEventListener("popstate", listener);
+  }, []);
+  const navigate = (next: string) => { window.history.pushState({}, "", next); currentPath = next; setPath(next); };
   return { path, navigate };
 }
 
 function AuthenticatedApp() {
   const { path, navigate } = usePath(); const { logout, user } = useAuth();
   const signOut = async () => { await logout(); navigate("/entrar"); };
-  const shell = (content: ReactNode) => <AppLayout onNavigate={navigate} onLogout={() => { void signOut(); }} canManage={user?.role === "superuser"}>{content}</AppLayout>;
+  const shell = (content: ReactNode) => <AppLayout currentPath={path} onNavigate={navigate} onLogout={() => { void signOut(); }} canManage={user?.role === "superuser"}>{content}</AppLayout>;
   useEffect(() => { if (user?.mustChangePassword && path !== "/trocar-senha-temporaria") navigate("/trocar-senha-temporaria"); }, [navigate, path, user?.mustChangePassword]);
   if (!user) return <main className="fhdod-auth-page"><ErrorState /></main>;
   if (user.mustChangePassword && path !== "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
@@ -34,17 +50,23 @@ function AuthenticatedApp() {
   if (path === "/perguntas-padrao/nova") return user.role === "superuser" ? shell(<QuestionCreationPage type="standard" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/nps/novo") return user.role === "superuser" ? shell(<QuestionCreationPage type="nps" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
+  if (path === "/planilhas-turnos") return user.role === "superuser" ? shell(<ShiftSheetsPage />) : shell(<ErrorState />);
+  if (path === "/auditoria") return user.role === "superuser" ? shell(<AuditPage />) : shell(<ErrorState />);
+  if (path === "/ouvidoria") return user.role === "superuser" ? shell(<OmbudsmanPage />) : shell(<ErrorState />);
   if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
   if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
-  return shell(<><div className="fhdod-page-heading"><div><p className="eyebrow">FHDOD</p><h1>Olá, {user.name}</h1><p>{user.role === "superuser" ? "Superusuário" : "Gestor de setor"} · {user.email}</p></div><StatusBadge status="active" /></div><Alert tone="info">As funções administrativas serão adicionadas nas próximas entregas.</Alert><EmptyState title="Nenhum dado para exibir">Esta etapa cobre acesso e conta; não há dados administrativos carregados.</EmptyState></>);
+  return shell(<AnalyticsPage canManage={user.role === "superuser"} />);
 }
 
 function Router() {
   const { status, restore, sessionExpired } = useAuth(); const { path, navigate } = usePath();
   const submissionRoute = path.match(/^\/avaliacao\/(\d+)$/);
+  const ticketRoute = path.match(/^\/manifestacao\/(\d+)$/);
+  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd", "/planilhas-turnos", "/auditoria", "/ouvidoria"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
   if (submissionRoute) return <PublicSubmissionPage sectorId={Number(submissionRoute[1])} />;
-  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
+  if (ticketRoute) return <PublicOmbudsmanPage sectorId={Number(ticketRoute[1])} />;
+  if (path === "/manifestacao") return <PublicOmbudsmanPage />;
   if (status === "checking") return <main className="fhdod-auth-page"><LoadingState /></main>;
   if (status === "unavailable") return <main className="fhdod-auth-page"><ErrorState /><button className="btn fhdod-button fhdod-button--primary mt-3" type="button" onClick={() => { void restore(); }}>Tentar novamente</button></main>;
   if (status === "anonymous") {
