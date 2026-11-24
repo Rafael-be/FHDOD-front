@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { Button } from "../components/ui/Button";
+import { FhdodLogo } from "../components/branding/FhdodLogo";
 import { ApiError } from "../services/http";
 import { submissionsService, type SubmissionStart } from "./submissions";
 
@@ -87,7 +88,7 @@ export function PublicSubmissionPage({ sectorId }: { sectorId: number }) {
   };
 
   return <main className="fhdod-auth-page fhdod-public-page"><section className="fhdod-profile-card fhdod-public-card">
-    <p className="eyebrow">Avaliação do atendimento</p>
+    <FhdodLogo className="fhdod-public-logo" /><p className="eyebrow">Avaliação do atendimento</p>
     <div className="fhdod-question-progress"><span>Pergunta {index + 1} de {start.questions.length}</span><div className="progress" role="progressbar" aria-label="Progresso da avaliação" aria-valuenow={index + 1} aria-valuemin={1} aria-valuemax={start.questions.length}><div className="progress-bar" style={{ width: `${((index + 1) / start.questions.length) * 100}%` }} /></div></div>
     <h1>{question.text}</h1>
     <p className="text-secondary mb-0">Selecione uma nota de {min} a {max}.</p>
