@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://fhdod-aw8q.onrender.com/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
