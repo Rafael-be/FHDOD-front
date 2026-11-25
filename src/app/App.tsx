@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "../components/layout/AppLayout";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
@@ -78,4 +79,5 @@ function Router() {
   return <AuthenticatedApp />;
 }
 
-export function App() { return <AuthProvider><Router /></AuthProvider>; }
+const queryClient = new QueryClient();
+export function App() { return <QueryClientProvider client={queryClient}><AuthProvider><Router /></AuthProvider></QueryClientProvider>; }
