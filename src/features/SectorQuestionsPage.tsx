@@ -22,6 +22,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   const [readiness, setReadiness] = useState<DraftReadiness | null>(null);
   const [versions, setVersions] = useState<FormVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<VersionDetail | null>(null);
+  const [expandedVersionId, setExpandedVersionId] = useState<number | null>(null);
   const [catalog, setCatalog] = useState<CatalogQuestion[]>([]);
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogTotal, setCatalogTotal] = useState(0);
@@ -123,7 +124,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
         <label className="form-label" htmlFor={`draft-question-${index}`}>Texto da pergunta</label>
         <textarea id={`draft-question-${index}`} className="form-control" maxLength={2000} rows={2} value={item.text} disabled={!item.canEditContent && item.questionId !== null}
           onChange={(event) => change(items.map((existing, position) => position === index ? { ...existing, text: event.target.value } : existing))} />
-        {!item.canEditContent && item.questionId !== null && <small className="text-secondary">Conteúdo protegido: {item.editRestrictionReason ?? "sem permissão"}</small>}
+        {!item.canEditContent && item.questionId !== null && <small className="text-secondary">Conteúdo protegido: {item.isNps ? "o NPS global não pode ser editado neste formulário." : "esta é uma pergunta global e você não possui permissão para editá-la."}</small>}
       </div>)}
     </section>
     <QuestionPreview items={items} />
@@ -131,7 +132,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       <label className="form-label" htmlFor="new-sector-question">Texto</label><textarea id="new-sector-question" className="form-control mb-2" maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} />
       <Button type="button" disabled={!text.trim() || busy} onClick={() => { change([...items.filter((item) => !item.isNps), { questionId: null, sourceQuestionVersionId: null, questionKind: "sector", isNps: false, text: text.trim(), position: items.length + 1, canEditContent: true }, ...items.filter((item) => item.isNps)]); setText(""); }}>Adicionar ao rascunho</Button>
     </section>
-    <section className="fhdod-profile-card mb-3"><h2 className="h5">Catálogo aplicável</h2>
+    <section className="fhdod-profile-card mb-3"><h2 className="h5">Perguntas disponíveis</h2><p className="text-secondary">Perguntas do catálogo que podem ser adicionadas a este formulário.</p>
       {available.length === 0 ? <p>Nenhum item disponível para associação nesta página do catálogo.</p> : available.map((question) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={question.id}><span>{question.text} {question.isNps ? "(NPS)" : ""}</span><Button type="button" variant="secondary" disabled={busy} onClick={() => addCatalog(question)}>Associar</Button></div>)}
       {catalogPage * 100 < catalogTotal && <Button type="button" variant="tertiary" disabled={busy} onClick={() => { void run(async () => { const next = catalogPage + 1; const result = await questionsService.catalog(sectorId, next); setCatalog((current) => [...current, ...result.items.filter((item) => !item.deletedAt)]); setCatalogPage(next); setCatalogTotal(result.total); }); }}>Carregar mais perguntas</Button>}
     </section>
@@ -141,8 +142,8 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       <Button type="button" disabled={busy || dirty || conflict || draft.draftStatus !== "drafting" || readiness?.status !== "active"} onClick={() => { void publish(); }}>Publicar</Button></div>
     {readiness && <Alert tone={readiness.status === "active" ? "success" : "warning"}>{readiness.status === "active" ? "Configuração pronta para publicação." : `Pendente: ${readiness.missingRequirements.map(requirement).join(", ")}`}</Alert>}
     <section className="fhdod-profile-card mt-3"><h2 className="h5">Histórico de versões</h2>
-      {versions.length === 0 ? <p>Nenhuma versão publicada.</p> : versions.map((version) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={version.id}><span>Versão {version.versionNumber}{version.current ? " · vigente" : ""}<small className="d-block text-secondary">Publicada em {formatPublishedAt(version.publishedAt)}</small></span><Button type="button" variant="tertiary" onClick={() => { void run(async () => { setSelectedVersion(await formDraftService.version(sectorId, version.id)); }); }}>Visualizar</Button></div>)}
-      {selectedVersion && <div className="mt-3"><h3 className="h6">Versão {versions.find((version) => version.id === selectedVersion.versionId)?.versionNumber ?? selectedVersion.versionId}</h3><QuestionPreview items={selectedVersion.items} /><Button type="button" disabled={busy || dirty || conflict} onClick={() => { void restore(selectedVersion.versionId); }}>Restaurar para rascunho</Button></div>}
+      {versions.length === 0 ? <p>Nenhuma versão publicada.</p> : versions.map((version) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={version.id}><span>Versão {version.versionNumber}{version.current ? " · vigente" : ""}<small className="d-block text-secondary">Publicada em {formatPublishedAt(version.publishedAt)}</small></span><Button type="button" variant="tertiary" aria-expanded={expandedVersionId === version.id} onClick={() => { if (expandedVersionId === version.id) { setExpandedVersionId(null); setSelectedVersion(null); return; } void run(async () => { setSelectedVersion(await formDraftService.version(sectorId, version.id)); setExpandedVersionId(version.id); }); }}>{expandedVersionId === version.id ? "Fechar" : "Visualizar"}</Button></div>)}
+      {selectedVersion && expandedVersionId === selectedVersion.versionId && <div className="mt-3"><h3 className="h6">Versão {versions.find((version) => version.id === selectedVersion.versionId)?.versionNumber ?? selectedVersion.versionId}</h3><QuestionPreview items={selectedVersion.items} /><Button type="button" disabled={busy || dirty || conflict} onClick={() => { void restore(selectedVersion.versionId); }}>Restaurar para rascunho</Button></div>}
     </section>
     <BaseModal open={showLeaveConfirm} title="Alterações não salvas" onRequestClose={() => setShowLeaveConfirm(false)}>
       <p>Você possui alterações no formulário que ainda não foram salvas. Se sair agora, essas alterações serão perdidas.</p>

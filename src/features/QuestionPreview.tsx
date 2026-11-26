@@ -11,7 +11,7 @@ export function QuestionPreview({ items }: { items: DraftItem[] }) {
       return <div className="mb-4" key={`${item.questionId ?? "new"}-${index}`}>
         <p className="mb-2"><strong>{index + 1}. {item.isNps ? "NPS" : "Pergunta"}</strong> {item.text}</p>
         <div className="d-flex flex-wrap gap-2" aria-label={`Escala de ${min} a ${max}`}>
-          {Array.from({ length: max - min + 1 }, (_, offset) => <button className="btn btn-outline-secondary" type="button" key={offset} tabIndex={-1}>{min + offset}</button>)}
+          {[...Array.from({ length: max - min + 1 }, (_, offset) => min + offset)].reverse().map((value) => <button className="btn btn-outline-secondary" type="button" key={value} tabIndex={-1}>{value}</button>)}
         </div>
       </div>;
     })}
