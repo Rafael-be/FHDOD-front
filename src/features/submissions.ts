@@ -15,7 +15,7 @@ export interface SubmissionQuestion {
 export interface CurrentForm { sectorId: number; formVersionId: number; questions: SubmissionQuestion[] }
 export interface CachedForm { form: CurrentForm; etag?: string }
 export interface SubmissionAnswer { questionId: number; questionVersionId: number; status: "answered" | "skipped"; score: number | null }
-export interface SubmissionAnswerResult { sessionId: string; status: "incomplete" | "complete"; answered: boolean; expiresAt: string; replayed?: boolean }
+export interface SubmissionAnswerResult { sessionId: string; status: "incomplete" | "complete"; answered: boolean; expiresAt: string; refreshesRemaining?: number; replayed?: boolean }
 export interface SubmissionStart {
   capability: { sessionId: string; token: string };
   session: { id: string; sectorId: number; formVersionId: number; expiresAt: string };
