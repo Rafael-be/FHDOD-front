@@ -6,7 +6,13 @@ import { GlobalQuestions } from "./GlobalQuestions";
 import { sectorsService, type Sector } from "./sectors";
 import { analyticsService, type AnalyticsDashboard, type AnalyticsFilter } from "./analytics";
 
-const format = (value: number | null, digits = 1) => value === null ? "Indisponível" : Number(value).toLocaleString("pt-BR", { maximumFractionDigits: digits });
+const decimal = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 1});
+const integer = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 0});
+const format = (value: number | null, digits = 1) => {
+  if (value === null) return "Indisponível";
+  const result = (digits ? decimal : integer).format(value);
+  return result === "-0" ? "0" : result;
+};
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const monthStart = () => `${today().slice(0, 7)}-01`;
 
@@ -17,10 +23,10 @@ function Bars({ title, rows }: { title: string; rows: { label: string; value: nu
   const max = Math.max(1, ...rows.map((row) => row.value));
   return <section className="fhdod-profile-card fhdod-chart-panel"><h2>{title}</h2>{rows.length === 0 ? <p className="text-secondary">Sem dados no período.</p> : rows.map((row) => <div className="fhdod-chart-row" key={row.label}><div><span>{row.label}</span><strong>{format(row.value, 0)}</strong></div><div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)}`}><div className="progress-bar" style={{ width: `${(row.value / max) * 100}%` }} /></div></div>)}</section>;
 }
-function Donut({ rows }: { rows: { label: string; value: number }[] }) {
+function Donut({ rows }: { rows: { label: string; value: number; score: number }[] }) {
   const total = rows.reduce((sum, row) => sum + row.value, 0); const colors = ["var(--color-primary)", "var(--color-primary-border)", "var(--color-text-muted)", "var(--color-border-strong)", "var(--color-success)"]; let cursor = 0;
-  const stops = rows.map((row, index) => { const start = cursor; cursor += total ? row.value / total * 100 : 0; return `${colors[index % colors.length]} ${start}% ${cursor}%`; });
-  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>Distribuição de notas gerais</h2>{!rows.length || !total ? <p className="text-secondary">Sem dados no período.</p> : <div className="fhdod-donut-layout"><div className="fhdod-donut" role="img" aria-label={`Distribuição de notas: ${format(total, 0)} respostas`} style={{ background: `conic-gradient(${stops.join(", ")})` }} /><ul className="fhdod-donut-legend">{rows.map((row, index) => <li key={row.label} style={{ "--legend-color": colors[index % colors.length] } as CSSProperties}><span>{row.label}</span><strong>{format(row.value, 0)}</strong><small>{format(row.value / total * 100)}%</small></li>)}</ul></div>}</section>;
+  const stops = rows.map((row) => { const start = cursor; cursor += total ? row.value / total * 100 : 0; return `${colors[row.score - 1]} ${start}% ${cursor}%`; });
+  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>Distribuição de notas gerais</h2>{!rows.length || !total ? <p className="text-secondary">Sem dados no período.</p> : <div className="fhdod-donut-layout"><div className="fhdod-donut" role="img" aria-label={`Distribuição de notas: ${format(total, 0)} respostas`} style={{ background: `conic-gradient(${stops.join(", ")})` }} /><ul className="fhdod-donut-legend">{rows.map(row => <li key={row.label} style={{ "--legend-color": colors[row.score - 1] } as CSSProperties}><span>{row.label}</span><strong>{format(row.value, 0)}</strong><small>{format(row.value / total * 100)}%</small></li>)}</ul></div>}</section>;
 }
 function Trend({ data }: { data: AnalyticsDashboard["daily"] }) {
   if (!data.length) return <EmptyState title="Sem evolução">Não houve sessões no período.</EmptyState>;
@@ -81,6 +87,7 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
       <div className="fhdod-kpi-grid">
         <Card label="NPS médio" value={data.nps.value === null ? "Sem respostas NPS" : format(data.nps.value, 0)} priority />
         <Card label="Satisfação média" value={ratings ? `${format(notes.reduce((sum, row) => sum + row.responses * row.score, 0) / ratings)} / 5` : "Sem respostas"} />
+        {canManage && <Card label="Manifestações" value={format(data.ombudsman.reduce((total, item) => total + item.tickets, 0))} />}
         <Card label="Iniciadas" value={format(data.sessions.started)} />
         <Card label="Completas" value={format(data.sessions.complete)} />
         <Card label="Não concluídas" value={format(data.sessions.incomplete)} />
@@ -93,12 +100,12 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
         {selected.length !== 1 && <Bars title="Pesquisas completas por setor" rows={data.sectors.map(row => ({ label: name(row.sector_id), value: row.complete }))} />}
       </div>
       <div className="fhdod-chart-grid fhdod-chart-grid--equal">
-        <Donut rows={notes.map(row => ({ label: `Nota ${row.score}`, value: row.responses }))} />
+        <Donut rows={notes.map(row => ({ label: `Nota ${row.score}`, value: row.responses, score: row.score }))} />
         <Bars title="Classificação do NPS" rows={data.nps.responses ? [
           { label: "Bons (9–10)", value: data.nps.promoters }, { label: "Neutros (7–8)", value: data.nps.passives }, { label: "Ruins (0–6)", value: data.nps.detractors }
         ].map(row => ({ ...row, label: `${row.label} · ${percentage(100 * row.value / data.nps.responses)}` })) : []} />
       </div>
-      <section className="fhdod-profile-card">
+      <section className="fhdod-profile-card fhdod-chart-panel mb-3">
         <h2>Pesquisas por turno</h2>
         {data.sessions.complete === 0 && <p>Sem pesquisas completas no período.</p>}
         {data.shifts.map(row => <div className="fhdod-chart-row" key={row.id}>

@@ -10,7 +10,8 @@ export function GlobalQuestions({ rows, selected, name }: {
   const [selection, setSelection] = useState("");
   const row = rows.find(item => identity(item) === selection) ?? rows[0];
   const maximum = row?.isNps ? 10 : 5;
-  return <section className="fhdod-profile-card">
+  const bySector = new Map(row?.sectors.map(sector => [sector.sectorId, sector]));
+  return <section className="fhdod-profile-card fhdod-chart-panel">
     <h2>Satisfação por pergunta global</h2>
     <p>Setores selecionados: {selected.map(name).join(", ") || "Todos os autorizados"}</p>
     {!row ? <p>Nenhuma pergunta global neste recorte.</p> : <>
@@ -27,7 +28,7 @@ export function GlobalQuestions({ rows, selected, name }: {
       </div>)}
       <h3>Resultado por setor</h3>
       <ul>{Array.from(new Set([...selected, ...row.sectors.map(item => item.sectorId)])).map(id => {
-        const sector = row.sectors.find(item => item.sectorId === id);
+        const sector = bySector.get(id);
         return <li key={id}>{name(id)} — {sector ? `${sector.responses} respostas · ${meanLabel(sector.mean, maximum)}` : "Sem respostas no período"}{!row.publishedSectorIds.includes(id) && " · Sem publicação vigente"}</li>;
       })}</ul>
     </>}

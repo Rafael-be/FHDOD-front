@@ -201,13 +201,13 @@ small, .small { font-size: .875rem; }
 .fhdod-chart-gridline { stroke: var(--color-border); stroke-dasharray: 3 4; }
 .fhdod-chart-axis-label { fill: var(--color-text-muted); font: 11px "DM Sans", sans-serif; }
 .fhdod-chart-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: var(--space-3) 0 var(--space-2); font-size: .8rem; font-weight: 700; }
-.fhdod-chart-legend span::before { content: ""; display: inline-block; width: 13px; height: 0; margin: 0 var(--space-2) 3px 0; border-top: 3px dashed var(--color-text-muted); }
-.fhdod-chart-legend span:last-child::before { border-top: 3px solid var(--color-primary); }
+.fhdod-chart-legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: var(--space-2); background: var(--color-text-muted); }
+.fhdod-chart-legend span:last-child::before { background: var(--color-primary); }
 .fhdod-donut-layout { display: grid; grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); align-items: center; gap: var(--space-5); }
 .fhdod-donut { width: min(100%, 190px); aspect-ratio: 1; margin: 0 auto; border-radius: 50%; background: conic-gradient(var(--color-primary) 0 25%, var(--color-primary-border) 25% 50%, var(--color-text-muted) 50% 75%, var(--color-border-strong) 75% 100%); position: relative; }
 .fhdod-donut::after { content: ""; position: absolute; inset: 25%; border-radius: 50%; background: var(--color-surface); }
 .fhdod-donut-legend { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-.fhdod-donut-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: var(--space-2); align-items: baseline; }
+.fhdod-donut-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: var(--space-2); align-items: baseline; }
 .fhdod-donut-legend li::before { content: ""; width: 12px; height: 12px; margin-top: 4px; border-radius: 2px; background: var(--legend-color); }
 
 .fhdod-public-page { align-content: start; padding-top: clamp(var(--space-5), 8vh, var(--space-7)); }
