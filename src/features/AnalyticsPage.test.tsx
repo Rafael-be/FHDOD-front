@@ -8,7 +8,7 @@ import {sectorsService} from "./sectors";
 
 Object.assign(globalThis, {IS_REACT_ACT_ENVIRONMENT: true});
 afterEach(() => vi.restoreAllMocks());
-it.each([[-12.8, "-13"], [null, "Sem respostas NPS"], [0, "0"]])("exibe o agregado %s e aplica o recorte aos dois relatórios", async (value, expected) => {
+it.each([[-12.8, "-13"], [-0.25, "≈ 0"], [null, "Sem respostas NPS"], [0, "0"]])("exibe o agregado %s e aplica o recorte aos dois relatórios", async (value, expected) => {
   const fixture: AnalyticsDashboard = {
     sessions: {started: 8, complete: 6, incomplete: 2, inProgress: 1, endedOrExpired: 1, closedIncomplete: 0, unknownDeadline: 0, completionRate: 75, nonCompletionRate: 25},
     nps: {value: value as number | null, responses: value === null ? 0 : 8, promoters: 2, passives: 3, detractors: 3},

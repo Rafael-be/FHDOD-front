@@ -8,11 +8,7 @@ import { analyticsService, type AnalyticsDashboard, type AnalyticsFilter } from 
 
 const decimal = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 1});
 const integer = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 0});
-const format = (value: number | null, digits = 1) => {
-  if (value === null) return "Indisponível";
-  const result = (digits ? decimal : integer).format(value);
-  return result === "-0" ? "0" : result;
-};
+const format = (value: number | null, digits = 1) => value === null ? "Indisponível" : (digits ? decimal : integer).format(value);
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const monthStart = () => `${today().slice(0, 7)}-01`;
 
@@ -67,6 +63,8 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
   const data = dashboard.isError ? undefined : dashboard.data;
   const notes = data?.distribution.filter(row => !row.is_nps) ?? [];
   const ratings = notes.reduce((total, row) => total + row.responses, 0);
+  const nps = data?.nps.value;
+  const npsLabel = nps == null ? "Sem respostas NPS" : nps !== 0 && Math.abs(nps) < 0.5 ? "≈ 0" : format(nps, 0);
   const percentage = (value: number | null) => value === null ? "Sem respostas" : `${format(value)}%`;
   return <section className="fhdod-analytics">
     <div className="fhdod-page-heading"><div><p className="eyebrow">Indicadores</p><h1>Experiência do paciente</h1></div></div>
@@ -85,7 +83,7 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
     {dashboard.isPending && <LoadingState />}
     {data && <>
       <div className="fhdod-kpi-grid">
-        <Card label="NPS médio" value={data.nps.value === null ? "Sem respostas NPS" : format(data.nps.value, 0)} priority />
+        <Card label="NPS médio" value={npsLabel} priority />
         <Card label="Satisfação média" value={ratings ? `${format(notes.reduce((sum, row) => sum + row.responses * row.score, 0) / ratings)} / 5` : "Sem respostas"} />
         {canManage && <Card label="Manifestações" value={format(data.ombudsman.reduce((total, item) => total + item.tickets, 0))} />}
         <Card label="Iniciadas" value={format(data.sessions.started)} />
