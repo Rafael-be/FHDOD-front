@@ -67,6 +67,7 @@ describe("PublicSubmissionPage", () => {
     await render();
     await act(async () => { button("0").click(); });
     expect(container.textContent).toContain("Falha de conexão");
+    await act(async () => {client.setQueryData(currentFormKey(2), {form:{...form.form, formVersionId:90}});});
     await act(async () => { button("Tentar enviar novamente").click(); });
     expect(start).toHaveBeenCalledTimes(2);
     expect(start.mock.calls[1].slice(1)).toEqual(start.mock.calls[0].slice(1));

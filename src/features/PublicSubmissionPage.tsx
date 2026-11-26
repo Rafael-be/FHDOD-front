@@ -29,7 +29,7 @@ function SurveyAttempt({sectorId, initialNotice, onReset}: {sectorId: number; in
   const lowNps = useRef(false);
   const [ticketType, setTicketType] = useState<"complaint" | "compliment">("compliment");
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
-  const queryClient = useQueryClient(); const correlationId = useRef(crypto.randomUUID()).current; const requestLock = useRef(false); const pending = useRef<SubmissionAnswer | null>(null); const attempt = useRef<ReturnType<typeof newAttempt> | null>(null); const heading = useRef<HTMLHeadingElement>(null); const expiryPrompted = useRef(false);
+  const queryClient = useQueryClient(); const [correlationId] = useState(() => crypto.randomUUID()); const requestLock = useRef(false); const pending = useRef<SubmissionAnswer | null>(null); const attempt = useRef<ReturnType<typeof newAttempt> | null>(null); const heading = useRef<HTMLHeadingElement>(null); const expiryPrompted = useRef(false);
   const [session, setSession] = useState<SubmissionStart | null>(null); const [pinned, setPinned] = useState<CachedForm | null>(null); const [index, setIndex] = useState(0); const [selected, setSelected] = useState<number | "skip" | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState<string>(); const [notice, setNotice] = useState(initialNotice); const [complete, setComplete] = useState(false); const [closed, setClosed] = useState(false); const [ombudsmanOpen, setOmbudsmanOpen] = useState(false); const [now, setNow] = useState(Date.now()); const [refreshesRemaining, setRefreshesRemaining] = useState<number | null>(null); const [expiryPromptOpen, setExpiryPromptOpen] = useState(false); const [nextFormIn, setNextFormIn] = useState(15);
   const query = useQuery({ queryKey: currentFormKey(sectorId), queryFn: () => submissionsService.currentForm(sectorId, queryClient.getQueryData<CachedForm>(currentFormKey(sectorId))), staleTime: 5 * 60 * 1000, retry: false });
   const form = pinned?.form ?? query.data?.form; const question = form?.questions[index]; const expiresAt = session?.answer.expiresAt ?? session?.session.expiresAt; const remaining = expiresAt ? Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 1000)) : null;
@@ -73,21 +73,76 @@ function SurveyAttempt({sectorId, initialNotice, onReset}: {sectorId: number; in
     if (requestLock.current || complete || closed || !form || !question || (pending.current && JSON.stringify(pending.current) !== JSON.stringify(answer))) return;
     requestLock.current = true; pending.current = answer; setBusy(true); setError(undefined);
     try {
-      let result; let nextSession = session;
-      if (!session) { attempt.current ??= newAttempt(); nextSession = await submissionsService.start(sectorId, form.formVersionId, attempt.current.attemptId, attempt.current.capability, answer); if (!active.current) return; setPinned({ form, etag: query.data?.etag }); setSession(nextSession); setRefreshesRemaining(nextSession.answer.refreshesRemaining ?? 3); result = nextSession.answer; }
-      else { result = await submissionsService.answer(session.capability.sessionId, session.capability.token, answer); if (!active.current) return; setSession({ ...session, answer: result }); }
-      pending.current = null; setNow(Date.now()); if (question.isNps && answer.score !== null && answer.score <= 6) lowNps.current = true;
-      expiryPrompted.current = false; setExpiryPromptOpen(false);
+      let result;
+      if (!session) {
+        attempt.current ??= newAttempt();
+        setPinned({ form, etag: query.data?.etag });
+        const started = await submissionsService.start(sectorId, form.formVersionId, attempt.current.attemptId, attempt.current.capability, answer);
+        if (!active.current) return;
+        setSession(started);
+        setRefreshesRemaining(started.answer.refreshesRemaining ?? 3);
+        result = started.answer;
+      } else {
+        result = await submissionsService.answer(session.capability.sessionId, session.capability.token, answer);
+        if (!active.current) return;
+        setSession({ ...session, answer: result });
+      }
+      pending.current = null;
+      setNow(Date.now());
+      if (question.isNps && answer.score !== null && answer.score <= 6) lowNps.current = true;
+      expiryPrompted.current = false;
+      setExpiryPromptOpen(false);
       if (result.status === "complete") {
         setComplete(true);
         if (lowNps.current) { setTicketType("complaint"); setOmbudsmanOpen(true); }
       } else { setIndex(index + 1); setSelected(null); }
-    } catch (cause) { if (!active.current || sessionError(cause)) return; if (cause instanceof ApiError && cause.status < 500) pending.current = null; if (cause instanceof ApiError && cause.code === "FORM_VERSION_CHANGED") { attempt.current = null; setSelected(null); setNotice("O formulário foi atualizado. Responda a primeira pergunta da nova versão."); await queryClient.invalidateQueries({ queryKey: currentFormKey(sectorId) }); } else setError(messageFor(cause)); }
-    finally { if (active.current) { requestLock.current = false; setBusy(false); } }
+    } catch (cause) {
+      if (!active.current || sessionError(cause)) return;
+      if (cause instanceof ApiError && cause.code === "FORM_VERSION_CHANGED") {
+        attempt.current = null;
+        pending.current = null;
+        setPinned(null);
+        setSelected(null);
+        setNotice("O formulário foi atualizado. Responda a primeira pergunta da nova versão.");
+        await queryClient.invalidateQueries({ queryKey: currentFormKey(sectorId) });
+      } else {
+        if (cause instanceof ApiError && cause.status === 400) pending.current = null;
+        setError(messageFor(cause));
+      }
+    } finally {
+      if (active.current) { requestLock.current = false; setBusy(false); }
+    }
   };
   const choose = (score: number | "skip") => { if (!question || busy || pending.current) return; setSelected(score); void send({ questionId: question.questionId, questionVersionId: question.questionVersionId, status: score === "skip" ? "skipped" : "answered", score: score === "skip" ? null : score }); };
-  const refresh = async () => { if (!session || requestLock.current) return; requestLock.current = true; setBusy(true); setError(undefined); try { const result = await submissionsService.refresh(session.capability.sessionId, session.capability.token); if (!active.current) return; setSession({ ...session, answer: { ...session.answer, expiresAt: result.expiresAt, refreshesRemaining: result.refreshesRemaining } }); setRefreshesRemaining(result.refreshesRemaining); setExpiryPromptOpen(false); expiryPrompted.current = false; setNow(Date.now()); } catch (cause) { if (active.current && !sessionError(cause)) setError(messageFor(cause)); } finally { if (active.current) { requestLock.current = false; setBusy(false); } } };
-  const close = async () => { if (!session || requestLock.current || !window.confirm("Encerrar esta avaliação? As respostas já enviadas serão mantidas.")) return; requestLock.current = true; setBusy(true); try { await submissionsService.close(session.capability.sessionId, session.capability.token); reset("Avaliação encerrada. As respostas confirmadas foram preservadas."); } catch (cause) { if (active.current && !sessionError(cause)) setError(messageFor(cause)); } finally { if (active.current) { requestLock.current = false; setBusy(false); } } };
+  const refresh = async () => {
+    if (!session || requestLock.current) return;
+    requestLock.current = true; setBusy(true); setError(undefined);
+    try {
+      const result = await submissionsService.refresh(session.capability.sessionId, session.capability.token);
+      if (!active.current) return;
+      setSession({ ...session, answer: { ...session.answer, expiresAt: result.expiresAt } });
+      setRefreshesRemaining(result.refreshesRemaining);
+      setExpiryPromptOpen(false);
+      expiryPrompted.current = false;
+      setNow(Date.now());
+    } catch (cause) {
+      if (active.current && !sessionError(cause)) setError(messageFor(cause));
+    } finally {
+      if (active.current) { requestLock.current = false; setBusy(false); }
+    }
+  };
+  const close = async () => {
+    if (!session || requestLock.current || !window.confirm("Encerrar esta avaliação? As respostas já enviadas serão mantidas.")) return;
+    requestLock.current = true; setBusy(true);
+    try {
+      await submissionsService.close(session.capability.sessionId, session.capability.token);
+      reset("Avaliação encerrada. As respostas confirmadas foram preservadas.");
+    } catch (cause) {
+      if (active.current && !sessionError(cause)) setError(messageFor(cause));
+    } finally {
+      if (active.current) { requestLock.current = false; setBusy(false); }
+    }
+  };
   const traceButton = surveyTraceEnabled && <Button type="button" variant="tertiary" onClick={exportSurveyTrace}>Exportar trace JSON</Button>;
   if (query.isPending && !pinned) return <main className="fhdod-auth-page fhdod-public-page"><LoadingState /></main>;
   if (query.isError && !pinned && !session) return <main className="fhdod-auth-page fhdod-public-page"><section className="fhdod-profile-card fhdod-public-card"><FhdodLogo className="fhdod-public-logo" /><Alert tone="danger">{messageFor(query.error, true)}</Alert><Button type="button" onClick={() => void query.refetch()}>Tentar novamente</Button>{traceButton}</section></main>;
