@@ -21,7 +21,7 @@ export function lowScoreTriggersOmbudsman(question: SubmissionQuestion, score: n
   const threshold = typeof custom === "number" && Number.isInteger(custom) && custom >= question.minScore && custom <= question.maxScore ? custom : fallback;
   return score <= threshold;
 }
-export interface CurrentForm { sectorId: number; formVersionId: number; questions: SubmissionQuestion[] }
+export interface CurrentForm { sectorId: number; sectorName?: string; formVersionId: number; questions: SubmissionQuestion[] }
 export interface CachedForm { form: CurrentForm; etag?: string }
 export interface SubmissionAnswer { questionId: number; questionVersionId: number; status: "answered" | "skipped"; score: number | null }
 export interface SubmissionAnswerResult { sessionId: string; status: "incomplete" | "complete"; answered: boolean; expiresAt: string; refreshesRemaining?: number; replayed?: boolean }

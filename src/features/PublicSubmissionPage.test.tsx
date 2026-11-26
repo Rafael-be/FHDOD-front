@@ -9,7 +9,7 @@ import { submissionsService, type CachedForm, type SubmissionStart } from "./sub
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const form: CachedForm = { form: { sectorId: 2, formVersionId: 42, questions: [
+const form: CachedForm = { form: { sectorId: 2, sectorName: "Pronto Atendimento", formVersionId: 42, questions: [
   { questionId: 1, questionVersionId: 2, text: "Recomendaria este atendimento?", questionKind: "standard", isNps: true, position: 1, required: true, options: [0, 1, 2], minScore: 0, maxScore: 10 },
   { questionId: 3, questionVersionId: 4, text: "Como foi o atendimento?", questionKind: "sector", isNps: false, position: 2, required: false, options: [1, 2, 3, 4, 5], minScore: 1, maxScore: 5 },
 ] } };
@@ -28,7 +28,7 @@ async function render(seed?: { sectorId: number; updatedAt?: number }) {
 function button(label: string) { return [...container.querySelectorAll("button")].find((item) => item.textContent === label)!; }
 
 describe("PublicSubmissionPage", () => {
-  afterEach(async () => { if (root) await act(async () => root.unmount()); vi.restoreAllMocks(); document.body.innerHTML = ""; });
+  afterEach(async () => { vi.useRealTimers(); if (root) await act(async () => root.unmount()); vi.restoreAllMocks(); document.body.innerHTML = ""; });
 
   it("mostra a primeira pergunta sem sessão e cria sessão apenas com a resposta zero", async () => {
     vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
@@ -138,6 +138,44 @@ describe("PublicSubmissionPage", () => {
     expect(start).toHaveBeenCalledOnce();
   });
 
+  it("encerra no backend, reinicia sem reutilizar a tentativa e oculta o toast após cinco segundos", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    const start = vi.spyOn(submissionsService, "start").mockResolvedValue(started);
+    const close = vi.spyOn(submissionsService, "close").mockResolvedValue({sessionId:"session-1",status:"closed"});
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await render();
+    expect(button("Encerrar sessão")).toBeUndefined();
+    await act(async () => button("0").click());
+    expect(button("Encerrar sessão")).toBeDefined();
+    expect(button("Pular")).toBeDefined();
+    expect([...container.querySelectorAll(".fhdod-question-actions button")].map(item=>item.textContent)).toEqual(["Encerrar sessão","Pular"]);
+    vi.useFakeTimers();
+    await act(async () => button("Encerrar sessão").click());
+    expect(close).toHaveBeenCalledWith("session-1","token-1");
+    expect(container.querySelector("h1")?.textContent).toBe("Recomendaria este atendimento?");
+    expect(container.querySelector(".fhdod-toast")?.textContent).toBe("Sessão encerrada com sucesso.");
+    await act(async () => vi.advanceTimersByTime(4999));
+    expect(container.querySelector(".fhdod-toast")).not.toBeNull();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(container.querySelector(".fhdod-toast")).toBeNull();
+    await act(async () => button("0").click());
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(start.mock.calls[0][2]).not.toBe(start.mock.calls[1][2]);
+  });
+
+  it("mantém a sessão e não mostra sucesso se o encerramento falhar", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    vi.spyOn(submissionsService, "start").mockResolvedValue(started);
+    vi.spyOn(submissionsService, "close").mockRejectedValue(new TypeError("offline"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await render();
+    await act(async () => button("0").click());
+    await act(async () => button("Encerrar sessão").click());
+    expect(container.querySelector("h1")?.textContent).toBe("Como foi o atendimento?");
+    expect(container.textContent).toContain("Falha de conexão");
+    expect(container.querySelector(".fhdod-toast")).toBeNull();
+  });
+
   it("renova pelo prazo confirmado e ignora resposta tardia depois da expiração", async () => {
     vi.spyOn(submissionsService, "currentForm").mockResolvedValue({...form, form: {...form.form, questions: [{...form.form.questions[0], options: [7]}, form.form.questions[1]]}});
     const deadline = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
@@ -182,7 +220,7 @@ describe("PublicSubmissionPage", () => {
     expect((container.querySelector('#ticket-type') as HTMLSelectElement).value).toBe("compliment");
   });
 
-  it("abre durante a pesquisa somente após confirmação e preserva a próxima pergunta", async () => {
+  it("guarda nota baixa e só abre ao concluir a última pergunta", async () => {
     vi.spyOn(submissionsService, "currentForm").mockResolvedValue({...form, form: {...form.form, questions: [{...form.form.questions[0], options: [6]}, form.form.questions[1]]}});
     let resolve!: (value: SubmissionStart) => void;
     vi.spyOn(submissionsService, "start").mockImplementation(() => new Promise(done => {resolve = done;}));
@@ -190,10 +228,14 @@ describe("PublicSubmissionPage", () => {
     await act(async () => button("6").click());
     expect(container.querySelector('#ticket-type')).toBeNull();
     await act(async () => resolve(started));
+    expect(container.querySelector('#ticket-type')).toBeNull();
+    expect(container.textContent).toContain("Como foi o atendimento?");
+    vi.spyOn(submissionsService, "answer").mockResolvedValue({...started.answer, status: "complete"});
+    await act(async () => button("1").click());
+    expect(container.textContent).toContain("Obrigado pela sua participação");
     expect((container.querySelector('#ticket-type') as HTMLSelectElement).value).toBe("complaint");
-    expect(container.textContent).toContain("Como foi o atendimento?");
     await act(async () => (container.querySelector('[aria-label="Fechar"]') as HTMLButtonElement).click());
-    expect(container.textContent).toContain("Como foi o atendimento?");
+    expect(container.querySelector('#ticket-type')).toBeNull();
   });
 
   it("não abre a Ouvidoria após falha do backend", async () => {
@@ -211,9 +253,10 @@ describe("PublicSubmissionPage", () => {
     vi.spyOn(pagesService,"get").mockResolvedValue({slug:"lgpd",title:"Política",content:"Texto de teste",versionNumber:1,publishedAt:""});
     await render();
     await act(async () => button("0").click());
-    await act(async () => button("5").click());
+    await act(async () => button("1").click());
     expect(container.querySelectorAll("form")).toHaveLength(1);
     expect((container.querySelector("#ticket-type") as HTMLSelectElement).value).toBe("complaint");
+    expect(container.textContent).toContain("Esta manifestação será vinculada ao setor Pronto Atendimento.");
     expect(container.querySelectorAll('a[href="/lgpd"]')).toHaveLength(1);
     vi.useFakeTimers();
     try {await act(async () => vi.advanceTimersByTimeAsync(16000));} finally {vi.useRealTimers();}

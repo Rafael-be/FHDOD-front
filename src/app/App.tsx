@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "../components/layout/AppLayout";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
-import { ChangeEmailForm, LoginForm, PasswordForm } from "../features/auth/AuthForms";
+import { LoginForm, PasswordForm } from "../features/auth/AuthForms";
+import { AccountPage } from "../features/AccountPage";
 import { ManagersPage } from "../features/ManagersPage";
 import { SectorsPage } from "../features/SectorsPage";
 import { SectorQuestionsPage } from "../features/SectorQuestionsPage";
@@ -50,7 +51,7 @@ function AuthenticatedApp() {
   useEffect(() => { if (user?.mustChangePassword && path !== "/trocar-senha-temporaria") navigate("/trocar-senha-temporaria"); }, [navigate, path, user?.mustChangePassword]);
   if (!user) return <main className="fhdod-auth-page"><ErrorState /></main>;
   if (user.mustChangePassword && path !== "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
-  if (path === "/conta") return shell(<section><div className="fhdod-page-heading"><div><p className="eyebrow">Minha conta</p><h1>Dados de acesso</h1><p>Altere suas credenciais institucionais com confirmação da senha atual.</p></div></div><div className="fhdod-profile-grid"><ChangeEmailForm onSuccess={() => navigate("/entrar")} /><section className="fhdod-profile-card"><PasswordForm onSuccess={() => navigate("/entrar")} /></section></div></section>);
+  if (path === "/conta") return shell(<AccountPage user={user} onCredentialChange={() => navigate("/entrar")} />);
   if (path === "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/gestores") return user.role === "superuser" ? shell(<ManagersPage />) : shell(<ErrorState />);
   if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} onQuestions={(sectorId) => navigate(`/setores/${sectorId}/perguntas`)} />);
