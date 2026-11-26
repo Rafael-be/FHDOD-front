@@ -18,8 +18,9 @@ export function GlobalQuestions({ rows, selected, name }: {
       <label>Pergunta global<select className="form-select" value={identity(row)} onChange={event => setSelection(event.target.value)}>
         {rows.map(item => <option key={identity(item)} value={identity(item)}>{item.text} · versão {item.questionVersionId} · {item.isNps ? "0–10" : "1–5"}</option>)}
       </select></label>
-      <p>Publicada atualmente em: {row.publishedSectorIds.map(name).join(", ") || "Nenhum setor selecionado"}</p>
-      <p>{row.responses} respostas válidas · Média: {meanLabel(row.mean, maximum)}</p>
+      <h3>{row.text}</h3>
+      <p>Setores com a pergunta publicada: {row.publishedSectorIds.map(name).join(", ") || "Nenhum setor selecionado"}</p>
+      <p>{row.responses} respostas válidas no período · Nota média: {meanLabel(row.mean, maximum)}</p>
       <h3>Distribuição das notas</h3>
       {!row.distribution.length && <p>Sem respostas no período.</p>}
       {row.distribution.map(bucket => <div key={bucket.score} className="fhdod-chart-row">

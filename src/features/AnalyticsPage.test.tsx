@@ -24,7 +24,7 @@ it.each([[-12.8, "-13"], [-0.25, "≈ 0"], [null, "Sem respostas NPS"], [0, "0"]
   await act(async () => root.render(<QueryClientProvider client={client}><AnalyticsPage canManage={false} userId={1}/></QueryClientProvider>));
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
   expect(container.querySelector(".fhdod-kpi strong")?.textContent).toBe(expected);
-  for (const label of ["Iniciadas8","Completas6","Não concluídas2","Em andamento1","75%","25%","Plantão A","100%","Sem turno identificado: 1","Unidade 4 — Sem respostas no período · Sem publicação vigente"]) expect(container.textContent).toContain(label);
+  for (const label of ["Iniciadas8","Completas6","Incompletas2","Pesquisas completas6","75%","25%","Plantão A","100%","Sem turno identificado: 1","Unidade 4 — Sem respostas no período · Sem publicação vigente"]) expect(container.textContent).toContain(label);
   expect(container.textContent).not.toContain("Ouvidoria");
   const list = container.querySelector("select[multiple]") as HTMLSelectElement;
   for (const count of [1,2]) {

@@ -57,7 +57,8 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
     setError("");
     setFilter({ ...period, sectorIds: ids, shiftRangeId: Number(shift) || undefined });
   };
-  const names = new Map((sectors.data ?? []).map((sector: Sector) => [sector.id, sector.name]));
+  const available = Array.from(new Map((sectors.data ?? []).filter((sector: Sector) => !sector.deletedAt).map((sector: Sector) => [sector.id, sector])).values());
+  const names = new Map(available.map((sector) => [sector.id, sector.name]));
   const name = (id: number) => names.get(id) ?? `Setor ${id}`;
   const selected = filter.sectorIds?.length ? filter.sectorIds : [...names.keys()];
   const data = dashboard.isError ? undefined : dashboard.data;
@@ -72,7 +73,7 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
       <label>De<input className="form-control" type="date" value={from} onChange={event => setFrom(event.target.value)} required /></label>
       <label>Até<input className="form-control" type="date" value={to} onChange={event => setTo(event.target.value)} required /></label>
       <label>Setores<select className="form-select" multiple value={ids.map(String)} onChange={event => setIds(Array.from(event.target.selectedOptions, option => Number(option.value)).sort((a,b) => a-b))}>
-        {(sectors.data ?? []).map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
+        {available.map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
       </select><small>Seleção vazia inclui todos os autorizados.</small></label>
       <label>ID da faixa de turno<input className="form-control" type="number" min="1" value={shift} onChange={event => setShift(event.target.value)} /></label>
       <Button type="submit">Aplicar</Button>
@@ -85,14 +86,10 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
       <div className="fhdod-kpi-grid">
         <Card label="NPS médio" value={npsLabel} priority />
         <Card label="Satisfação média" value={ratings ? `${format(notes.reduce((sum, row) => sum + row.responses * row.score, 0) / ratings)} / 5` : "Sem respostas"} />
-        {canManage && <Card label="Manifestações" value={format(data.ombudsman.reduce((total, item) => total + item.tickets, 0))} />}
-        <Card label="Iniciadas" value={format(data.sessions.started)} />
-        <Card label="Completas" value={format(data.sessions.complete)} />
-        <Card label="Não concluídas" value={format(data.sessions.incomplete)} />
-        <Card label="Em andamento" value={format(data.sessions.inProgress)} />
-        <Card label="Taxa de conclusão" value={percentage(data.sessions.completionRate)} />
-        <Card label="Percentual não concluído" value={percentage(data.sessions.nonCompletionRate)} />
+        <Card label="Pesquisas completas" value={format(data.sessions.complete, 0)} priority />
       </div>
+      <div className="fhdod-summary-strip" aria-label="Outros indicadores">{[["Iniciadas", data.sessions.started], ["Incompletas", data.sessions.incomplete], ["Completas", data.sessions.complete], ["Manifestações", canManage ? data.ombudsman.reduce((total, item) => total + item.tickets, 0) : null]].map(([label, value]) => <div key={String(label)}><small>{label}</small><strong>{value === null ? "Acesso restrito" : format(value as number, 0)}</strong></div>)}</div>
+      <p className="small text-secondary">Taxa de conclusão: {percentage(data.sessions.completionRate)} · Não concluídas: {percentage(data.sessions.nonCompletionRate)} · Em andamento: {format(data.sessions.inProgress, 0)}</p>
       <div className={`fhdod-chart-grid${selected.length === 1 ? " fhdod-chart-grid--single" : ""}`}>
         <Trend data={data.daily} />
         {selected.length !== 1 && <Bars title="Pesquisas completas por setor" rows={data.sectors.map(row => ({ label: name(row.sector_id), value: row.complete }))} />}
