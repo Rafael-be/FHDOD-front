@@ -15,15 +15,16 @@ const nextStatuses: Record<TicketStatus, TicketStatus[]> = {
 };
 const messageOf = (cause: unknown) => cause instanceof ApiError ? cause.message : "Não foi possível concluir a solicitação.";
 
-export function PublicOmbudsmanPage({ sectorId: routeSectorId, modal = false, onClose }: { sectorId?: number; modal?: boolean; onClose?: () => void }) {
+export function PublicOmbudsmanPage({ sectorId: routeSectorId, modal = false, initialType = "compliment", onClose }: { sectorId?: number; modal?: boolean; initialType?: TicketType; onClose?: () => void }) {
   const [sectorId, setSectorId] = useState(routeSectorId ? String(routeSectorId) : "");
-  const [ticketType, setTicketType] = useState<TicketType>("complaint");
+  const [ticketType, setTicketType] = useState<TicketType>(initialType);
   const [body, setBody] = useState(""); const [phone, setPhone] = useState(""); const [accepted, setAccepted] = useState(false);
   const [policy, setPolicy] = useState<ContentPage | null>(null);
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string>(); const [receipt, setReceipt] = useState(false);
   useEffect(() => { pagesService.get("lgpd").then(setPolicy).catch(() => setError("A política de privacidade não está disponível para leitura.")); }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (!accepted) { setError("Leia e aceite a Política de Privacidade."); return; }
+    if (!body.trim()) { setError("Escreva uma mensagem antes de enviar."); return; }
     if (body.length > MAX_PUBLIC_MESSAGE_LENGTH) { setError("A mensagem excede o limite permitido."); return; }
     setBusy(true); setError(undefined);
     try {
@@ -34,14 +35,14 @@ export function PublicOmbudsmanPage({ sectorId: routeSectorId, modal = false, on
   const form = <form onSubmit={(event) => { void submit(event); }}>
     {receipt && <Alert tone="success">Manifestação registrada com sucesso.</Alert>}
     {error && <Alert tone="danger">{error}</Alert>}
-    <label className="form-label" htmlFor="ticket-sector">Código do setor</label><input id="ticket-sector" className="form-control mb-3" type="number" min="1" value={sectorId} onChange={(event) => setSectorId(event.target.value)} readOnly={Boolean(routeSectorId)} required />
+    {routeSectorId ? <p>Setor vinculado ao formulário.</p> : <> <label className="form-label" htmlFor="ticket-sector">Código do setor</label><input id="ticket-sector" className="form-control mb-3" type="number" min="1" value={sectorId} onChange={(event) => setSectorId(event.target.value)} readOnly={Boolean(routeSectorId)} required /></>}
     <label className="form-label" htmlFor="ticket-type">Tipo</label><select id="ticket-type" className="form-select mb-3" value={ticketType} onChange={(event) => setTicketType(event.target.value as TicketType)}>{Object.entries(types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
     <div className="d-flex justify-content-between align-items-baseline gap-2"><label className="form-label mb-2" htmlFor="ticket-body">Mensagem</label><span className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-count fhdod-character-count--limit" : "fhdod-character-count"} aria-live="polite">{body.length}/{MAX_PUBLIC_MESSAGE_LENGTH}</span></div>
     <textarea id="ticket-body" className="form-control mb-1" maxLength={MAX_PUBLIC_MESSAGE_LENGTH} rows={5} value={body} onChange={(event) => setBody(event.target.value)} aria-describedby="ticket-body-limit" required />
     <div id="ticket-body-limit" className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-warning" : "fhdod-character-hint"} aria-live="polite">{body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "Limite máximo de caracteres atingido." : ""}</div>
     <label className="form-label" htmlFor="ticket-phone">Telefone com DDD (opcional)</label><input id="ticket-phone" className="form-control mb-3" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} placeholder="(XX) XXXXX-XXXX" />
-    <div className="mb-3"><p className="form-label mb-2">Política de Privacidade</p><p className="small text-secondary mb-2">Leia a <a href="/lgpd">Política de Privacidade</a> antes de enviar sua manifestação.</p>{!policy && <p className="small text-secondary mb-0">Carregando política...</p>}</div>
-    <label className="d-block mb-3"><input type="checkbox" checked={accepted} disabled={!policy || busy} onChange={(event) => setAccepted(event.target.checked)} required /> <span>Li e aceito a <a href="/lgpd" onClick={(event) => event.stopPropagation()}>Política de Privacidade</a>.</span></label>
+
+    <label className="d-block mb-3"><input type="checkbox" checked={accepted} disabled={!policy || busy} onChange={(event) => setAccepted(event.target.checked)} required /> <span>Li e aceito a <a href="/lgpd" target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Política de Privacidade</a>.</span></label>
     <Button type="submit" loading={busy} disabled={!policy}>Enviar manifestação</Button>
   </form>;
   if (modal) return <BaseModal open title="Ouvidoria" onRequestClose={onClose} busy={busy}>{form}</BaseModal>;
@@ -56,7 +57,7 @@ export function OmbudsmanPage() {
   const load = async (nextPage = pageNumber) => {
     setBusy(true); setError(undefined);
     try { setPage(await ombudsmanService.list({ page: nextPage, pageSize: 20, sectorId: sectorId ? Number(sectorId) : undefined, ticketType: type ? type as TicketType : undefined, status: status ? status as TicketStatus : undefined })); setPageNumber(nextPage); }
-    catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
+    catch (cause) { if (cause instanceof ApiError && cause.status === 403) { setPage(null); setSelected(null); } setError(messageOf(cause)); } finally { setBusy(false); }
   };
   useEffect(() => { void load(1); sectorsService.list().then(setSectors).catch(() => undefined); }, []);
   const detail = async (id: number) => { try { setSelected(await ombudsmanService.get(id)); } catch (cause) { setError(messageOf(cause)); } };

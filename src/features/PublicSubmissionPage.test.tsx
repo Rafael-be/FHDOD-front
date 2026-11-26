@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { pagesService } from "./pages";
 import { ApiError } from "../services/http";
 import { PublicSubmissionPage, currentFormKey } from "./PublicSubmissionPage";
 import { submissionsService, type CachedForm, type SubmissionStart } from "./submissions";
@@ -114,7 +115,68 @@ describe("PublicSubmissionPage", () => {
     await act(async () => { button("0").click(); });
     await act(async () => { button("5").click(); });
     expect(container.textContent).toContain("O prazo da avaliação terminou");
-    await act(async () => { button("Iniciar nova avaliação").click(); });
+    expect(button("Iniciar nova avaliação")).toBeUndefined();
     expect(container.textContent).toContain("Recomendaria este atendimento?");
+  });
+
+  it("pula com nota nula apenas após confirmação e encerra sem criar outra sessão", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    const start = vi.spyOn(submissionsService, "start").mockResolvedValue(started);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const close = vi.spyOn(submissionsService, "close").mockResolvedValue({sessionId:"session-1",status:"closed"});
+    const answer = vi.spyOn(submissionsService, "answer").mockRejectedValue(new TypeError("offline"));
+    await render();
+    expect(button("Pular")).toBeUndefined();
+    await act(async () => button("2").click());
+    await act(async () => button("Pular").click());
+    expect(answer.mock.calls[0][2]).toEqual({questionId:3,questionVersionId:4,status:"skipped",score:null});
+    expect(container.querySelector("h1")?.textContent).toBe("Como foi o atendimento?");
+    await act(async () => button("Encerrar sessão").click());
+    expect(close).toHaveBeenCalledWith("session-1","token-1");
+    expect(container.querySelector("h1")?.textContent).toBe("Recomendaria este atendimento?");
+    expect(start).toHaveBeenCalledOnce();
+  });
+
+  it("renova pelo prazo confirmado e ignora resposta tardia depois da expiração", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    const deadline = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
+    vi.spyOn(submissionsService, "start").mockResolvedValue({...started,answer:{...started.answer,expiresAt:deadline(8)}});
+    const refresh = vi.spyOn(submissionsService, "refresh").mockImplementation(async () => ({expiresAt:deadline(5),refreshesRemaining:0}));
+    let resolve!: (result: SubmissionStart["answer"]) => void;
+    vi.spyOn(submissionsService, "answer").mockImplementation(() => new Promise(done => {resolve = done;}));
+    await render();
+    vi.useFakeTimers();
+    try {
+      await act(async () => button("0").click());
+      expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Continuar respondendo");
+      await act(async () => button("Continuar respondendo").click());
+      expect(refresh).toHaveBeenCalledOnce();
+      expect(container.textContent).toContain("Todas as renovações foram utilizadas");
+      await act(async () => button("5").click());
+      await act(async () => vi.advanceTimersByTimeAsync(6000));
+      expect(container.querySelector("h1")?.textContent).toBe("Recomendaria este atendimento?");
+      await act(async () => resolve({...started.answer,status:"complete"}));
+      expect(container.textContent).not.toContain("Obrigado");
+    } finally {vi.useRealTimers();}
+  });
+
+  it("abre uma única Ouvidoria para NPS baixo, pausa o contador e usa Elogio na abertura manual", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    vi.spyOn(submissionsService, "start").mockResolvedValue(started);
+    vi.spyOn(submissionsService, "answer").mockResolvedValue({...started.answer,status:"complete"});
+    vi.spyOn(pagesService,"get").mockResolvedValue({slug:"lgpd",title:"Política",content:"Texto de teste",versionNumber:1,publishedAt:""});
+    await render();
+    await act(async () => button("0").click());
+    await act(async () => button("5").click());
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+    expect((container.querySelector("#ticket-type") as HTMLSelectElement).value).toBe("complaint");
+    expect(container.querySelectorAll('a[href="/lgpd"]')).toHaveLength(1);
+    vi.useFakeTimers();
+    try {await act(async () => vi.advanceTimersByTimeAsync(16000));} finally {vi.useRealTimers();}
+    expect(container.textContent).toContain("00:15");
+    await act(async () => (container.querySelector('[aria-label="Fechar"]') as HTMLButtonElement).click());
+    expect(container.querySelector("form")).toBeNull();
+    await act(async () => button("Escrever manifestação").click());
+    expect((container.querySelector("#ticket-type") as HTMLSelectElement).value).toBe("compliment");
   });
 });
