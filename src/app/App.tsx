@@ -12,6 +12,7 @@ import { QuestionCreationPage } from "../features/QuestionCreationPage";
 import { PublicSubmissionPage } from "../features/PublicSubmissionPage";
 import { ShiftSheetsPage } from "../features/ShiftSheetsPage";
 import { AuditPage } from "../features/AuditPage";
+import { TvWall, TvWallConfig } from "../features/TvWall";
 import { AnalyticsPage } from "../features/AnalyticsPage";
 import { OmbudsmanPage, PublicOmbudsmanPage } from "../features/OmbudsmanPage";
 import { FhdodLogo } from "../components/branding/FhdodLogo";
@@ -59,6 +60,7 @@ function AuthenticatedApp() {
   if (path === "/nps/novo") return user.role === "superuser" ? shell(<QuestionCreationPage type="nps" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
   if (path === "/planilhas-turnos") return user.role === "superuser" ? shell(<ShiftSheetsPage />) : shell(<ErrorState />);
+  if (path === "/tv-wall/config") return user.role === "superuser" ? shell(<TvWallConfig userId={user.id} />) : shell(<ErrorState />);
   if (path === "/auditoria") return user.role === "superuser" ? shell(<AuditPage />) : shell(<ErrorState />);
   if (path === "/ouvidoria") return user.role === "superuser" ? shell(<OmbudsmanPage />) : shell(<ErrorState />);
   if (path === "/lgpd") return shell(<PublicPage />);
@@ -86,4 +88,4 @@ function Router() {
 }
 
 const queryClient = new QueryClient();
-export function App() { return <QueryClientProvider client={queryClient}><AuthProvider><Router /></AuthProvider></QueryClientProvider>; }
+export function App() { return <QueryClientProvider client={queryClient}>{window.location.pathname === "/tv-wall" ? <TvWall /> : <AuthProvider><Router /></AuthProvider>}</QueryClientProvider>; }

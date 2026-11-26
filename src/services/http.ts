@@ -124,7 +124,7 @@ export class HttpClient {
         method,
         body,
         headers,
-        credentials: "include",
+        credentials: options.credentials ?? "include",
       });
       const payload = await readPayload(response) as ApiEnvelope<T> | ErrorEnvelope;
 

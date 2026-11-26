@@ -1,0 +1,47 @@
+import {act} from "react";
+import {createRoot} from "react-dom/client";
+import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
+import {afterEach, expect, it, vi} from "vitest";
+import {TvWallConfig} from "./TvWall";
+import {App} from "../app/App";
+import {api} from "../services/http";
+import {sectorsService} from "./sectors";
+
+Object.assign(globalThis, {IS_REACT_ACT_ENVIRONMENT: true});
+afterEach(() => {vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); window.history.replaceState({}, "", "/");});
+it("consulta apenas a rota pública sem cookies e recupera após falha no intervalo configurado", async () => {
+  vi.useFakeTimers();
+  const response = () => Response.json({data: {periodDays: 7, refreshSeconds: 30, indicators: [{id:"nps",value:-12}, {id:"completionRate",value:null}], body:"texto privado"}});
+  const fetch = vi.fn().mockResolvedValueOnce(response()).mockRejectedValueOnce(new TypeError("offline")).mockResolvedValueOnce(response());
+  vi.stubGlobal("fetch", fetch);
+  window.history.replaceState({}, "", "/tv-wall");
+  const host = document.createElement("div"), root = createRoot(host);
+  await act(async () => root.render(<App/>));
+  await act(async () => vi.advanceTimersByTimeAsync(5));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledWith("/api/public/tv-wall", expect.objectContaining({credentials:"omit"}));
+  expect(host.textContent).toContain("-12");
+  expect(host.textContent).toContain("Indisponível");
+  expect(host.textContent).not.toContain("texto privado");
+  await act(async () => vi.advanceTimersByTimeAsync(30005));
+  expect(host.textContent).toContain("Falha ao atualizar");
+  await act(async () => vi.advanceTimersByTimeAsync(30005));
+  expect(host.textContent).toContain("-12");
+  await act(async () => root.unmount());
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
+it("salva a ordem pré-visualizada e os filtros carregados pela API", async () => {
+  const config = {periodDays:7, refreshSeconds:60, indicators:["nps","completionRate"],sectorIds:[4]};
+  const request = vi.spyOn(api,"request").mockResolvedValue(config);
+  vi.spyOn(sectorsService,"list").mockResolvedValue([{id:4, name:"Unidade",code:"U",deletedAt:null}]);
+  const host = document.createElement("div"), root = createRoot(host), client = new QueryClient();
+  await act(async () => root.render(<QueryClientProvider client={client}><TvWallConfig userId={1}/></QueryClientProvider>));
+  await act(async () => {await new Promise(resolve => setTimeout(resolve,10));});
+  await act(async () => (host.querySelector('[aria-label="Adiar NPS médio"]') as HTMLButtonElement).click());
+  expect(host.querySelector(".wall-tiles h2")?.textContent).toBe("Taxa de conclusão");
+  await act(async () => host.querySelector("form")!.dispatchEvent(new Event("submit", {bubbles:true,cancelable:true})));
+  expect(request).toHaveBeenCalledWith("/api/tv-wall/config", {method:"PUT",body:{...config, indicators:["completionRate","nps"]}});
+  await act(async () => root.unmount());
+  client.clear();
+});
