@@ -36,6 +36,12 @@ function usePath() {
   return { path, navigate };
 }
 
+function AccountQueries({ children }: { children: ReactNode }) {
+  const [client] = useState(() => new QueryClient());
+  useEffect(() => () => client.clear(), [client]);
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
 function AuthenticatedApp() {
   const { path, navigate } = usePath(); const { logout, user } = useAuth();
   const signOut = async () => { await logout(); navigate("/entrar"); };
@@ -58,11 +64,11 @@ function AuthenticatedApp() {
   if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
   if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
-  return shell(<AnalyticsPage canManage={user.role === "superuser"} />);
+  return shell(<AnalyticsPage userId={user.id} canManage={user.role === "superuser"} />);
 }
 
 function Router() {
-  const { status, restore, sessionExpired } = useAuth(); const { path, navigate } = usePath();
+  const { status, restore, sessionExpired, user } = useAuth(); const { path, navigate } = usePath();
   const submissionRoute = path.match(/^\/avaliacao\/(\d+)$/);
   const ticketRoute = path.match(/^\/manifestacao\/(\d+)$/);
   useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd", "/planilhas-turnos", "/auditoria", "/ouvidoria"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
@@ -76,7 +82,7 @@ function Router() {
     if (path === "/trocar-senha-temporaria" || path === "/conta") return <main className="fhdod-auth-page"><EmptyState title="Sua sessão terminou">Entre novamente para continuar.</EmptyState></main>;
     return <main className="fhdod-auth-page"><FhdodLogo className="fhdod-auth-logo" /><LoginForm onSuccess={() => navigate("/")} sessionExpired={sessionExpired} /></main>;
   }
-  return <AuthenticatedApp />;
+  return <AccountQueries key={`${user?.id}:${user?.role}`}><AuthenticatedApp /></AccountQueries>;
 }
 
 const queryClient = new QueryClient();

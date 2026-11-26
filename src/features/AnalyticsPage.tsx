@@ -1,12 +1,13 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { Alert, EmptyState, LoadingState } from "../components/ui/Feedback";
 import { Button } from "../components/ui/Button";
-import { ApiError } from "../services/http";
+import { useQuery } from "@tanstack/react-query";
+import { GlobalQuestions } from "./GlobalQuestions";
 import { sectorsService, type Sector } from "./sectors";
-import { analyticsService, type AnalyticsDashboard } from "./analytics";
+import { analyticsService, type AnalyticsDashboard, type AnalyticsFilter } from "./analytics";
 
 const format = (value: number | null, digits = 1) => value === null ? "Indisponível" : Number(value).toLocaleString("pt-BR", { maximumFractionDigits: digits });
-const today = () => new Date().toLocaleDateString("en-CA");
+const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const monthStart = () => `${today().slice(0, 7)}-01`;
 
 function Card({ label, value, priority = false }: { label: string; value: string; priority?: boolean }) {
@@ -24,13 +25,94 @@ function Donut({ rows }: { rows: { label: string; value: number }[] }) {
 function Trend({ data }: { data: AnalyticsDashboard["daily"] }) {
   if (!data.length) return <EmptyState title="Sem evolução">Não houve sessões no período.</EmptyState>;
   const width = 600, height = 180, max = Math.max(1, ...data.map((day) => day.started)); const point = (value: number, index: number) => `${32 + index * 548 / Math.max(1, data.length - 1)},${150 - value * 126 / max}`;
-  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>Evolução das pesquisas</h2><svg viewBox={`0 0 ${width} ${height}`} className="w-100" role="img" aria-label="Linha de pesquisas iniciadas e concluídas por dia; valores detalhados na tabela acessível"><line className="fhdod-chart-gridline" x1="32" y1="24" x2="580" y2="24" /><line className="fhdod-chart-axis" x1="32" y1="150" x2="580" y2="150" /><text className="fhdod-chart-axis-label" x="2" y="27">{max}</text><text className="fhdod-chart-axis-label" x="17" y="153">0</text><polyline className="fhdod-chart-line-started" points={data.map((day, index) => point(day.started, index)).join(" ")} fill="none" strokeWidth="3" /><polyline className="fhdod-chart-line-complete" points={data.map((day, index) => point(day.complete, index)).join(" ")} fill="none" strokeWidth="3" />{data.map((day, index) => <g key={day.day}><circle className="fhdod-chart-point-started" transform={`translate(${point(day.started, index)})`} r="3.5"><title>{day.day}: {day.started} iniciadas</title></circle><circle className="fhdod-chart-point-complete" transform={`translate(${point(day.complete, index)})`} r="2.5"><title>{day.day}: {day.complete} concluídas</title></circle></g>)}<text className="fhdod-chart-axis-label" x="32" y="174">{data[0].day}</text>{data.length > 1 && <text className="fhdod-chart-axis-label" x="580" y="174" textAnchor="end">{data[data.length - 1].day}</text>}</svg><div className="fhdod-chart-legend"><span>Iniciadas</span><span>Concluídas</span></div><p className="small text-secondary mb-0">De {data[0].day} até {data[data.length - 1].day}</p></section>;
+  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>Evolução das pesquisas</h2><svg viewBox={`0 0 ${width} ${height}`} className="w-100" role="img" aria-label="Linha de pesquisas iniciadas e concluídas por dia; valores nos pontos do gráfico"><line className="fhdod-chart-gridline" x1="32" y1="24" x2="580" y2="24" /><line className="fhdod-chart-axis" x1="32" y1="150" x2="580" y2="150" /><text className="fhdod-chart-axis-label" x="2" y="27">{max}</text><text className="fhdod-chart-axis-label" x="17" y="153">0</text><polyline className="fhdod-chart-line-started" points={data.map((day, index) => point(day.started, index)).join(" ")} fill="none" strokeWidth="3" /><polyline className="fhdod-chart-line-complete" points={data.map((day, index) => point(day.complete, index)).join(" ")} fill="none" strokeWidth="3" />{data.map((day, index) => <g key={day.day}><circle className="fhdod-chart-point-started" transform={`translate(${point(day.started, index)})`} r="3.5"><title>{day.day}: {day.started} iniciadas</title></circle><circle className="fhdod-chart-point-complete" transform={`translate(${point(day.complete, index)})`} r="2.5"><title>{day.day}: {day.complete} concluídas</title></circle></g>)}<text className="fhdod-chart-axis-label" x="32" y="174">{data[0].day}</text>{data.length > 1 && <text className="fhdod-chart-axis-label" x="580" y="174" textAnchor="end">{data[data.length - 1].day}</text>}</svg><div className="fhdod-chart-legend"><span>Iniciadas</span><span>Concluídas</span></div><p className="small text-secondary mb-0">De {data[0].day} até {data[data.length - 1].day}</p></section>;
 }
-export function AnalyticsPage({ canManage }: { canManage: boolean }) {
-  const [from, setFrom] = useState(monthStart); const [to, setTo] = useState(today); const [sectorId, setSectorId] = useState(""); const [shiftRangeId, setShiftRangeId] = useState(""); const [sectors, setSectors] = useState<Sector[]>([]); const [data, setData] = useState<AnalyticsDashboard | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState<string>();
-  useEffect(() => { sectorsService.list().then(setSectors).catch(() => setError("Não foi possível carregar os setores.")); }, []);
-  const load = async (event?: FormEvent) => { event?.preventDefault(); if (to < from) { setError("A data final deve ser igual ou posterior à inicial."); return; } setBusy(true); setError(undefined); try { const fromIso = new Date(`${from}T00:00:00-03:00`).toISOString(); const toIso = new Date(new Date(`${to}T00:00:00-03:00`).getTime() + 86400000).toISOString(); setData(await analyticsService.dashboard({ from: fromIso, to: toIso, sectorId: sectorId ? Number(sectorId) : undefined, shiftRangeId: shiftRangeId ? Number(shiftRangeId) : undefined })); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "Não foi possível carregar os indicadores."); } finally { setBusy(false); } };
-  useEffect(() => { void load(); }, []);
-  const names = new Map(sectors.map((sector) => [sector.id, sector.name])); const totalRatings = data?.questions.filter((question) => !question.is_nps).reduce((sum, question) => sum + Number(question.responses), 0) ?? 0; const weightedMean = totalRatings ? data!.questions.filter((question) => !question.is_nps && question.mean !== null).reduce((sum, question) => sum + Number(question.mean) * Number(question.responses), 0) / totalRatings : null; const tickets = data?.ombudsman.reduce((sum, row) => sum + Number(row.tickets), 0) ?? 0; const singleSector = Boolean(sectorId); const distribution = data?.distribution.filter((row) => !row.is_nps).map((row) => ({ label: `Nota ${row.score}`, value: Number(row.responses) })) ?? []; const npsGroups = data ? [{ label: "Bons (9–10)", value: Number(data.nps.promoters) }, { label: "Neutros (7–8)", value: Number(data.nps.passives) }, { label: "Ruins (0–6)", value: Number(data.nps.detractors) }] : [];
-  return <section className="fhdod-analytics"><div className="fhdod-page-heading"><div><p className="eyebrow">Indicadores</p><h1>Experiência do paciente</h1><p>Visão das avaliações e manifestações no período selecionado.</p></div></div><form className="fhdod-profile-card fhdod-filter-panel row g-3 align-items-end" onSubmit={(event) => { void load(event); }}><div className="col-12 col-md-3"><label className="form-label" htmlFor="analytics-from">De</label><input id="analytics-from" className="form-control" type="date" value={from} onChange={(event) => setFrom(event.target.value)} required /></div><div className="col-12 col-md-3"><label className="form-label" htmlFor="analytics-to">Até</label><input id="analytics-to" className="form-control" type="date" value={to} onChange={(event) => setTo(event.target.value)} required /></div><div className="col-12 col-md-3"><label className="form-label" htmlFor="analytics-sector">Setor</label><select id="analytics-sector" className="form-select" value={sectorId} onChange={(event) => setSectorId(event.target.value)}><option value="">Todos os autorizados</option>{sectors.filter((sector) => !sector.deletedAt).map((sector) => <option key={sector.id} value={sector.id}>{sector.name}</option>)}</select></div><div className="col-12 col-md-2"><label className="form-label" htmlFor="analytics-shift">ID da faixa de turno</label><input id="analytics-shift" className="form-control" type="number" min="1" value={shiftRangeId} onChange={(event) => setShiftRangeId(event.target.value)} /></div><div className="col-12 col-md-1"><Button type="submit" loading={busy}>Aplicar</Button></div></form>{error && <Alert tone="danger">{error}</Alert>}{!data && busy && <LoadingState />}{data && <><div className="fhdod-kpi-grid"><Card label="Completas" value={format(data.sessions.complete, 0)} priority /><Card label="Satisfação média" value={weightedMean === null ? "Indisponível" : `${format(weightedMean)} / 5`} priority /><Card label="NPS médio" value={data.nps.value === null ? "Indisponível" : format(data.nps.value)} priority /></div><div className="fhdod-summary-strip" aria-label="Outros indicadores">{[["Iniciadas", format(data.sessions.started, 0)], ["Incompletas", format(data.sessions.incomplete, 0)], ["Completas", format(totalRatings, 0)], ["Manifestações", format(tickets, 0)]].map(([label, value]) => <div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div><div className={`fhdod-chart-grid${singleSector ? " fhdod-chart-grid--single" : ""}`}><Trend data={data.daily} />{!singleSector && <Bars title="Pesquisas por setor" rows={data.sectors.map((row) => ({ label: names.get(row.sector_id) ?? `Setor ${row.sector_id}`, value: Number(row.complete) }))} />}</div><div className="fhdod-chart-grid fhdod-chart-grid--equal"><Donut rows={distribution} /><Bars title="Classificação do NPS" rows={npsGroups} /></div><Bars title="Ouvidoria por tipo e status" rows={data.ombudsman.map((row) => ({ label: `${names.get(row.sector_id) ?? row.sector_id} · ${row.ticket_type} · ${row.status}`, value: Number(row.tickets) }))} /><p className="small text-secondary mt-3">{data.privacyNotice} Taxa sobre atendimentos e atribuição de equipe indisponíveis.</p>{!canManage && <p className="small text-secondary">Somente setores vinculados à sua conta.</p>}</>}</section>;
+function dateFilter(from: string, to: string): AnalyticsFilter {
+  return {
+    from: new Date(`${from}T00:00:00-03:00`).toISOString(),
+    to: new Date(Date.parse(`${to}T00:00:00-03:00`) + 86400000).toISOString(),
+  };
+}
+export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userId: number }) {
+  const [from, setFrom] = useState(monthStart);
+  const [to, setTo] = useState(today);
+  const [ids, setIds] = useState<number[]>([]);
+  const [shift, setShift] = useState("");
+  const [filter, setFilter] = useState(() => dateFilter(from, to));
+  const [error, setError] = useState("");
+  const scope = [userId, canManage];
+  const sectors = useQuery({ queryKey: ["sectors", ...scope], queryFn: () => sectorsService.list(), retry: false, staleTime: 60000 });
+  const dashboard = useQuery({ queryKey: ["dashboard", ...scope, filter], queryFn: ({signal}) => analyticsService.dashboard(filter, signal), retry: false, staleTime: 60000 });
+  const questions = useQuery({ queryKey: ["global-questions", ...scope, filter], queryFn: ({signal}) => analyticsService.questions(filter, signal), retry: false, staleTime: 60000 });
+  const apply = (event: FormEvent) => {
+    event.preventDefault();
+    const period = dateFilter(from, to);
+    const days = (Date.parse(period.to) - Date.parse(period.from)) / 86400000;
+    if (days <= 0 || days > 366 || ids.length > 200) {
+      setError("Escolha um período de 1 a 366 dias e até 200 setores.");
+      return;
+    }
+    setError("");
+    setFilter({ ...period, sectorIds: ids, shiftRangeId: Number(shift) || undefined });
+  };
+  const names = new Map((sectors.data ?? []).map((sector: Sector) => [sector.id, sector.name]));
+  const name = (id: number) => names.get(id) ?? `Setor ${id}`;
+  const selected = filter.sectorIds?.length ? filter.sectorIds : [...names.keys()];
+  const data = dashboard.isError ? undefined : dashboard.data;
+  const notes = data?.distribution.filter(row => !row.is_nps) ?? [];
+  const ratings = notes.reduce((total, row) => total + row.responses, 0);
+  const percentage = (value: number | null) => value === null ? "Sem respostas" : `${format(value)}%`;
+  return <section className="fhdod-analytics">
+    <div className="fhdod-page-heading"><div><p className="eyebrow">Indicadores</p><h1>Experiência do paciente</h1></div></div>
+    <form className="fhdod-profile-card d-flex flex-wrap align-items-end gap-3 mb-3" onSubmit={apply}>
+      <label>De<input className="form-control" type="date" value={from} onChange={event => setFrom(event.target.value)} required /></label>
+      <label>Até<input className="form-control" type="date" value={to} onChange={event => setTo(event.target.value)} required /></label>
+      <label>Setores<select className="form-select" multiple value={ids.map(String)} onChange={event => setIds(Array.from(event.target.selectedOptions, option => Number(option.value)).sort((a,b) => a-b))}>
+        {(sectors.data ?? []).map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
+      </select><small>Seleção vazia inclui todos os autorizados.</small></label>
+      <label>ID da faixa de turno<input className="form-control" type="number" min="1" value={shift} onChange={event => setShift(event.target.value)} /></label>
+      <Button type="submit">Aplicar</Button>
+    </form>
+    {error && <Alert tone="danger">{error}</Alert>}
+    {sectors.isError && <Alert tone="danger">{sectors.error.message}</Alert>}
+    {dashboard.isError && <Alert tone="danger">{dashboard.error.message} <button onClick={() => void dashboard.refetch()}>Tentar novamente</button></Alert>}
+    {dashboard.isPending && <LoadingState />}
+    {data && <>
+      <div className="fhdod-kpi-grid">
+        <Card label="NPS médio" value={data.nps.value === null ? "Sem respostas NPS" : format(data.nps.value, 0)} priority />
+        <Card label="Satisfação média" value={ratings ? `${format(notes.reduce((sum, row) => sum + row.responses * row.score, 0) / ratings)} / 5` : "Sem respostas"} />
+        <Card label="Iniciadas" value={format(data.sessions.started)} />
+        <Card label="Completas" value={format(data.sessions.complete)} />
+        <Card label="Não concluídas" value={format(data.sessions.incomplete)} />
+        <Card label="Em andamento" value={format(data.sessions.inProgress)} />
+        <Card label="Taxa de conclusão" value={percentage(data.sessions.completionRate)} />
+        <Card label="Percentual não concluído" value={percentage(data.sessions.nonCompletionRate)} />
+      </div>
+      <div className={`fhdod-chart-grid${selected.length === 1 ? " fhdod-chart-grid--single" : ""}`}>
+        <Trend data={data.daily} />
+        {selected.length !== 1 && <Bars title="Pesquisas completas por setor" rows={data.sectors.map(row => ({ label: name(row.sector_id), value: row.complete }))} />}
+      </div>
+      <div className="fhdod-chart-grid fhdod-chart-grid--equal">
+        <Donut rows={notes.map(row => ({ label: `Nota ${row.score}`, value: row.responses }))} />
+        <Bars title="Classificação do NPS" rows={data.nps.responses ? [
+          { label: "Bons (9–10)", value: data.nps.promoters }, { label: "Neutros (7–8)", value: data.nps.passives }, { label: "Ruins (0–6)", value: data.nps.detractors }
+        ].map(row => ({ ...row, label: `${row.label} · ${percentage(100 * row.value / data.nps.responses)}` })) : []} />
+      </div>
+      <section className="fhdod-profile-card">
+        <h2>Pesquisas por turno</h2>
+        {data.sessions.complete === 0 && <p>Sem pesquisas completas no período.</p>}
+        {data.shifts.map(row => <div className="fhdod-chart-row" key={row.id}>
+          <div><span>{row.name} · {name(row.sector_id)}</span><strong>{row.completed}</strong></div>
+          <div className="progress"><div className="progress-bar" style={{width: `${row.percentage ?? 0}%`}} /></div>
+        </div>)}
+        <ul className="list-inline">{data.shifts.map(row => <li className="list-inline-item" key={row.id}>{row.name} · {name(row.sector_id)} — {row.completed} ({row.percentage === null ? "sem base" : percentage(row.percentage)})</li>)}</ul>
+        <p>Sem turno identificado: {data.unclassifiedCompleted}</p>
+      </section>
+      {canManage && <Bars title="Ouvidoria por tipo e status" rows={data.ombudsman.map(row => ({ label: `${name(row.sector_id)} · ${row.ticket_type} · ${row.status}`, value: row.tickets }))} />}
+      <p className="small text-secondary">{data.privacyNotice}</p>
+    </>}
+    {questions.isPending && <LoadingState />}
+    {questions.isError && <Alert tone="danger">{questions.error.message} <button onClick={() => void questions.refetch()}>Tentar novamente</button></Alert>}
+    {questions.isSuccess && <GlobalQuestions rows={questions.data} selected={selected} name={name} />}
+  </section>;
 }
