@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export function Alert({ children, tone = "info" }: { children: ReactNode; tone?: "info" | "success" | "danger" }) {
+export function Alert({ children, tone = "info" }: { children: ReactNode; tone?: "info" | "success" | "danger" | "warning" }) {
   return <div className={`alert alert-${tone === "danger" ? "danger" : tone}`} role="alert">{children}</div>;
 }
 

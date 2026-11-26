@@ -1,12 +1,13 @@
 export interface ApiEnvelope<T> { data: T }
 
-interface ErrorEnvelope { error?: { code?: string; message?: string } }
+interface ErrorEnvelope { error?: { code?: string; message?: string; details?: unknown } }
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
     readonly code?: string,
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -36,6 +37,10 @@ async function readPayload(response: Response): Promise<unknown> {
   const contentType = response.headers.get("content-type") ?? "";
   return contentType.includes("application/json") ? response.json() : response.text();
 }
+function responseError(payload: unknown): ErrorEnvelope["error"] {
+  return payload && typeof payload === "object" && "error" in payload
+    ? (payload as ErrorEnvelope).error : undefined;
+}
 
 export class HttpClient {
   private csrfToken: string | null = null;
@@ -63,9 +68,9 @@ export class HttpClient {
       })
         .then(async (response) => {
           const payload = await readPayload(response) as ApiEnvelope<{ csrfToken: string }> | ErrorEnvelope;
-          if (!response.ok || !("data" in payload) || !payload.data.csrfToken) {
-            const error = "error" in payload ? payload.error : undefined;
-            throw new ApiError(error?.message ?? "Não foi possível validar a sessão.", response.status, error?.code);
+          if (!response.ok || !payload || typeof payload !== "object" || !("data" in payload) || !payload.data?.csrfToken) {
+            const error = responseError(payload);
+            throw new ApiError(error?.message ?? "Não foi possível validar a sessão.", response.status, error?.code, error?.details);
           }
           this.csrfToken = payload.data.csrfToken;
           return this.csrfToken;
@@ -83,13 +88,14 @@ export class HttpClient {
         headers: { Accept: "application/json" },
       })
         .then(async (response) => {
-          const payload = await readPayload(response) as ApiEnvelope<{ csrfToken: string }> | ErrorEnvelope;
-          if (!response.ok || !("data" in payload)) {
-            const error = "error" in payload ? payload.error : undefined;
+          const payload = await readPayload(response) as ApiEnvelope<{ csrfToken: string }> | { csrfToken?: string } & ErrorEnvelope;
+          const session = payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+          if (!response.ok || !session || typeof session !== "object" || !("csrfToken" in session) || typeof session.csrfToken !== "string") {
+            const error = responseError(payload);
             if (response.status === 401) this.onSessionExpired?.();
-            throw new ApiError(error?.message ?? "Sua sessão terminou.", response.status, error?.code);
+            throw new ApiError(error?.message ?? "Sua sessão terminou.", response.status, error?.code, error?.details);
           }
-          this.csrfToken = payload.data.csrfToken;
+          this.csrfToken = session.csrfToken;
         })
         .finally(() => { this.refreshRequest = null; });
     }
@@ -101,13 +107,16 @@ export class HttpClient {
     const mutating = !safeMethods.has(method);
     const useCsrf = options.csrf ?? mutating;
     const refreshOnUnauthorized = options.refreshOnUnauthorized ?? true;
-    const body = options.body === undefined ? undefined : JSON.stringify(options.body);
-    const dedupeKey = options.dedupeKey ?? (mutating ? `${method}:${path}:${body ?? ""}` : undefined);
+    const rawBody = options.body instanceof Uint8Array
+      ? (options.body.buffer.slice(options.body.byteOffset, options.body.byteOffset + options.body.byteLength) as ArrayBuffer)
+      : undefined;
+    const body = rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body));
+    const dedupeKey = options.dedupeKey ?? (mutating && !rawBody ? `${method}:${path}:${body ?? ""}` : undefined);
 
     const execute = async (canRefresh: boolean): Promise<T> => {
       const headers = new Headers(options.headers);
       headers.set("Accept", "application/json");
-      if (body !== undefined) headers.set("Content-Type", "application/json");
+      if (body !== undefined && rawBody === undefined) headers.set("Content-Type", "application/json");
       if (useCsrf) headers.set("x-csrf-token", await this.csrf());
 
       const response = await fetch(endpoint(this.baseUrl, path), {
@@ -124,9 +133,9 @@ export class HttpClient {
         return execute(false);
       }
       if (!response.ok) {
-        const error = "error" in payload ? payload.error : undefined;
+        const error = responseError(payload);
         if (response.status === 401 && refreshOnUnauthorized && path !== "/api/auth/login") this.onSessionExpired?.();
-        throw new ApiError(error?.message ?? "Não foi possível concluir a solicitação.", response.status, error?.code);
+        throw new ApiError(error?.message ?? "Não foi possível concluir a solicitação.", response.status, error?.code, error?.details);
       }
       if (response.status === 204) return undefined as T;
       if (payload && typeof payload === "object" && "data" in payload) return payload.data as T;
