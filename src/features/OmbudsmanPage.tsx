@@ -32,18 +32,19 @@ export function PublicOmbudsmanPage({ sectorId: routeSectorId, modal = false, in
       setReceipt(true); setBody(""); setPhone(""); setAccepted(false);
     } catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
   };
+  const overLimit = body.length > MAX_PUBLIC_MESSAGE_LENGTH;
   const form = <form onSubmit={(event) => { void submit(event); }}>
     {receipt && <Alert tone="success">Manifestação registrada com sucesso.</Alert>}
     {error && <Alert tone="danger">{error}</Alert>}
     {routeSectorId ? <p>Setor vinculado ao formulário.</p> : <> <label className="form-label" htmlFor="ticket-sector">Código do setor</label><input id="ticket-sector" className="form-control mb-3" type="number" min="1" value={sectorId} onChange={(event) => setSectorId(event.target.value)} readOnly={Boolean(routeSectorId)} required /></>}
     <label className="form-label" htmlFor="ticket-type">Tipo</label><select id="ticket-type" className="form-select mb-3" value={ticketType} onChange={(event) => setTicketType(event.target.value as TicketType)}>{Object.entries(types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-    <div className="d-flex justify-content-between align-items-baseline gap-2"><label className="form-label mb-2" htmlFor="ticket-body">Mensagem</label><span className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-count fhdod-character-count--limit" : "fhdod-character-count"} aria-live="polite">{body.length}/{MAX_PUBLIC_MESSAGE_LENGTH}</span></div>
-    <textarea id="ticket-body" className="form-control mb-1" maxLength={MAX_PUBLIC_MESSAGE_LENGTH} rows={5} value={body} onChange={(event) => setBody(event.target.value)} aria-describedby="ticket-body-limit" required />
-    <div id="ticket-body-limit" className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-warning" : "fhdod-character-hint"} aria-live="polite">{body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "Limite máximo de caracteres atingido." : ""}</div>
+    <div className="d-flex justify-content-between align-items-baseline gap-2"><label className="form-label mb-2" htmlFor="ticket-body">Mensagem</label><span className={overLimit ? "fhdod-character-count fhdod-character-count--limit" : "fhdod-character-count"} aria-live="polite">{body.length}/{MAX_PUBLIC_MESSAGE_LENGTH}</span></div>
+    <textarea id="ticket-body" className={`form-control mb-1${overLimit ? " fhdod-message-over-limit" : ""}`} aria-invalid={overLimit} rows={5} value={body} onChange={(event) => setBody(event.target.value)} aria-describedby="ticket-body-limit" required />
+    <div id="ticket-body-limit" className={overLimit ? "fhdod-character-warning" : "fhdod-character-hint"} aria-live="polite">{overLimit ? "A mensagem excede o limite permitido." : ""}</div>
     <label className="form-label" htmlFor="ticket-phone">Telefone com DDD (opcional)</label><input id="ticket-phone" className="form-control mb-3" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} placeholder="(XX) XXXXX-XXXX" />
 
     <label className="d-block mb-3"><input type="checkbox" checked={accepted} disabled={!policy || busy} onChange={(event) => setAccepted(event.target.checked)} required /> <span>Li e aceito a <a href="/lgpd" target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Política de Privacidade</a>.</span></label>
-    <Button type="submit" loading={busy} disabled={!policy}>Enviar manifestação</Button>
+    <Button type="submit" className="fhdod-ombudsman-submit" loading={busy} disabled={!policy || !accepted || !body.trim() || overLimit || !Number.isInteger(Number(sectorId)) || Number(sectorId) <= 0}>Enviar manifestação</Button>
   </form>;
   if (modal) return <BaseModal open title="Ouvidoria" onRequestClose={onClose} busy={busy}>{form}</BaseModal>;
   return <main className="fhdod-auth-page"><section className="fhdod-profile-card mx-auto"><p className="eyebrow">FHDOD</p><h1>Ouvidoria</h1><p>Envie uma manifestação sobre sua experiência. O telefone é opcional e permite contato posterior.</p>{form}</section></main>;
@@ -87,7 +88,7 @@ export function OmbudsmanPage() {
       <label>Setor<select className="form-select" value={sectorId} onChange={(event) => setSectorId(event.target.value)}><option value="">Todos</option>{sectors.map((sector) => <option value={sector.id} key={sector.id}>{sector.name}</option>)}</select></label>
       <label>Tipo<select className="form-select" value={type} onChange={(event) => setType(event.target.value)}><option value="">Todos</option>{Object.entries(types).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
       <label>Status<select className="form-select" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos</option>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-      <Button type="submit" loading={busy}>Filtrar</Button>
+      <Button type="submit" className="fhdod-ombudsman-submit" loading={busy}>Filtrar</Button>
     </form>
     {!page && busy && <LoadingState />}
     {page && (page.items.length === 0 ? <EmptyState title="Sem manifestações">Nenhum registro corresponde aos filtros.</EmptyState> :

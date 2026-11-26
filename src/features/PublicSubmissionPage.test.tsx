@@ -139,7 +139,7 @@ describe("PublicSubmissionPage", () => {
   });
 
   it("renova pelo prazo confirmado e ignora resposta tardia depois da expiração", async () => {
-    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue({...form, form: {...form.form, questions: [{...form.form.questions[0], options: [7]}, form.form.questions[1]]}});
     const deadline = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
     vi.spyOn(submissionsService, "start").mockResolvedValue({...started,answer:{...started.answer,expiresAt:deadline(8)}});
     const refresh = vi.spyOn(submissionsService, "refresh").mockImplementation(async () => ({expiresAt:deadline(5),refreshesRemaining:0}));
@@ -148,7 +148,7 @@ describe("PublicSubmissionPage", () => {
     await render();
     vi.useFakeTimers();
     try {
-      await act(async () => button("0").click());
+      await act(async () => button("7").click());
       expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Continuar respondendo");
       await act(async () => button("Continuar respondendo").click());
       expect(refresh).toHaveBeenCalledOnce();
@@ -159,6 +159,49 @@ describe("PublicSubmissionPage", () => {
       await act(async () => resolve({...started.answer,status:"complete"}));
       expect(container.textContent).not.toContain("Obrigado");
     } finally {vi.useRealTimers();}
+  });
+
+  it.each([
+    [false, 2, undefined, true], [false, 3, undefined, false],
+    [true, 6, undefined, true], [true, 7, undefined, false],
+    [false, 3, 3, true], [true, 7, 7, true],
+  ])("abre após resposta aceita: NPS=%s, nota=%s, corte=%s", async (isNps, score, lowScoreThreshold, expected) => {
+    const oneQuestion = {...form, form: {...form.form, questions: [{...form.form.questions[0], isNps, minScore: isNps ? 0 : 1, maxScore: isNps ? 10 : 5, options: [score], lowScoreThreshold}]}};
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(oneQuestion);
+    vi.spyOn(submissionsService, "start").mockResolvedValue({...started, answer: {...started.answer, status: "complete"}});
+    vi.spyOn(pagesService,"get").mockResolvedValue({slug:"lgpd",title:"Política",content:"Texto",versionNumber:1,publishedAt:""});
+    await render();
+    await act(async () => button(String(score)).click());
+    expect(container.textContent).toContain("Obrigado pela sua participação");
+    expect(Boolean(container.querySelector('#ticket-type'))).toBe(expected);
+    if (expected) {
+      expect((container.querySelector('#ticket-type') as HTMLSelectElement).value).toBe("complaint");
+      await act(async () => (container.querySelector('[aria-label="Fechar"]') as HTMLButtonElement).click());
+    }
+    await act(async () => button("Escrever manifestação").click());
+    expect((container.querySelector('#ticket-type') as HTMLSelectElement).value).toBe("compliment");
+  });
+
+  it("abre durante a pesquisa somente após confirmação e preserva a próxima pergunta", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue({...form, form: {...form.form, questions: [{...form.form.questions[0], options: [6]}, form.form.questions[1]]}});
+    let resolve!: (value: SubmissionStart) => void;
+    vi.spyOn(submissionsService, "start").mockImplementation(() => new Promise(done => {resolve = done;}));
+    await render();
+    await act(async () => button("6").click());
+    expect(container.querySelector('#ticket-type')).toBeNull();
+    await act(async () => resolve(started));
+    expect((container.querySelector('#ticket-type') as HTMLSelectElement).value).toBe("complaint");
+    expect(container.textContent).toContain("Como foi o atendimento?");
+    await act(async () => (container.querySelector('[aria-label="Fechar"]') as HTMLButtonElement).click());
+    expect(container.textContent).toContain("Como foi o atendimento?");
+  });
+
+  it("não abre a Ouvidoria após falha do backend", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    vi.spyOn(submissionsService, "start").mockRejectedValue(new ApiError("falha", 500, "INTERNAL"));
+    await render();
+    await act(async () => button("0").click());
+    expect(container.querySelector('#ticket-type')).toBeNull();
   });
 
   it("abre uma única Ouvidoria para NPS baixo, pausa o contador e usa Elogio na abertura manual", async () => {

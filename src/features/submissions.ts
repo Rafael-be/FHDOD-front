@@ -11,6 +11,15 @@ export interface SubmissionQuestion {
   options: number[];
   minScore: number;
   maxScore: number;
+  lowScoreThreshold?: number;
+}
+
+export function lowScoreTriggersOmbudsman(question: SubmissionQuestion, score: number | null): boolean {
+  if (score === null) return false;
+  const fallback = question.isNps ? 6 : 2;
+  const custom = question.lowScoreThreshold;
+  const threshold = typeof custom === "number" && Number.isInteger(custom) && custom >= question.minScore && custom <= question.maxScore ? custom : fallback;
+  return score <= threshold;
 }
 export interface CurrentForm { sectorId: number; formVersionId: number; questions: SubmissionQuestion[] }
 export interface CachedForm { form: CurrentForm; etag?: string }

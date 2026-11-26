@@ -6,7 +6,7 @@ import { BaseModal } from "../components/ui/BaseModal";
 import { Button } from "../components/ui/Button";
 import { ApiError } from "../services/http";
 import { PublicOmbudsmanPage } from "./OmbudsmanPage";
-import { newAttempt, submissionsService, type CachedForm, type SubmissionAnswer, type SubmissionStart } from "./submissions";
+import { lowScoreTriggersOmbudsman, newAttempt, submissionsService, type CachedForm, type SubmissionAnswer, type SubmissionStart } from "./submissions";
 import { exportSurveyTrace, surveyTraceEnabled, traceSurvey } from "./surveyTrace";
 
 export const currentFormKey = (sectorId: number) => ["public-current-form", sectorId] as const;
@@ -26,7 +26,7 @@ export function PublicSubmissionPage({ sectorId }: { sectorId: number }) {
 
 function SurveyAttempt({sectorId, initialNotice, onReset}: {sectorId: number; initialNotice: string; onReset: (notice: string) => void}) {
   const active = useRef(true);
-  const lowNps = useRef(false);
+  const autoPrompted = useRef(false);
   const [ticketType, setTicketType] = useState<"complaint" | "compliment">("compliment");
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const queryClient = useQueryClient(); const [correlationId] = useState(() => crypto.randomUUID()); const requestLock = useRef(false); const pending = useRef<SubmissionAnswer | null>(null); const attempt = useRef<ReturnType<typeof newAttempt> | null>(null); const heading = useRef<HTMLHeadingElement>(null); const expiryPrompted = useRef(false);
@@ -34,7 +34,7 @@ function SurveyAttempt({sectorId, initialNotice, onReset}: {sectorId: number; in
   const query = useQuery({ queryKey: currentFormKey(sectorId), queryFn: () => submissionsService.currentForm(sectorId, queryClient.getQueryData<CachedForm>(currentFormKey(sectorId))), staleTime: 5 * 60 * 1000, retry: false });
   const form = pinned?.form ?? query.data?.form; const question = form?.questions[index]; const expiresAt = session?.answer.expiresAt ?? session?.session.expiresAt; const remaining = expiresAt ? Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 1000)) : null;
   useEffect(() => { traceSurvey("SURVEY_PAGE_OPEN", correlationId, sectorId); }, [correlationId, sectorId]);
-  useEffect(() => { if (question) heading.current?.focus(); }, [question?.questionId, index]);
+  useEffect(() => { if (question && !ombudsmanOpen) heading.current?.focus(); }, [question?.questionId, index, ombudsmanOpen]);
   useEffect(() => { if (!session || complete || closed) return undefined; const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, [session, complete, closed]);
   function reset(message = "") {
     if (!active.current) return;
@@ -43,13 +43,13 @@ function SurveyAttempt({sectorId, initialNotice, onReset}: {sectorId: number; in
     onReset(message);
   }
   useEffect(() => {
-    if (remaining === 0 && session && !complete && !closed) reset("O prazo da avaliação terminou. Inicie uma nova avaliação.");
-  }, [remaining, session, complete, closed]);
+    if (remaining === 0 && session && !complete && !closed && !ombudsmanOpen) reset("O prazo da avaliação terminou. Inicie uma nova avaliação.");
+  }, [remaining, session, complete, closed, ombudsmanOpen]);
   useEffect(() => {
-    if (remaining !== null && remaining > 0 && remaining <= 10 && (refreshesRemaining ?? 0) > 0 && !expiryPrompted.current && !busy && !complete) {
+    if (remaining !== null && remaining > 0 && remaining <= 10 && (refreshesRemaining ?? 0) > 0 && !expiryPrompted.current && !busy && !complete && !ombudsmanOpen) {
       expiryPrompted.current = true; setExpiryPromptOpen(true);
     }
-  }, [remaining, refreshesRemaining, busy, complete]);
+  }, [remaining, refreshesRemaining, busy, complete, ombudsmanOpen]);
   useEffect(() => { if (!complete || ombudsmanOpen) return undefined; const timer = window.setInterval(() => setNextFormIn(value => Math.max(0, value - 1)), 1000); return () => window.clearInterval(timer); }, [complete, ombudsmanOpen]);
   useEffect(() => { if (complete && nextFormIn === 0 && !ombudsmanOpen) reset(); }, [complete, nextFormIn, ombudsmanOpen]);
 
@@ -89,13 +89,13 @@ function SurveyAttempt({sectorId, initialNotice, onReset}: {sectorId: number; in
       }
       pending.current = null;
       setNow(Date.now());
-      if (question.isNps && answer.score !== null && answer.score <= 6) lowNps.current = true;
+      const shouldPrompt = !autoPrompted.current && lowScoreTriggersOmbudsman(question, answer.score);
+      if (shouldPrompt) autoPrompted.current = true;
       expiryPrompted.current = false;
       setExpiryPromptOpen(false);
-      if (result.status === "complete") {
-        setComplete(true);
-        if (lowNps.current) { setTicketType("complaint"); setOmbudsmanOpen(true); }
-      } else { setIndex(index + 1); setSelected(null); }
+      if (result.status === "complete") setComplete(true);
+      else { setIndex(index + 1); setSelected(null); }
+      if (shouldPrompt) { setTicketType("complaint"); setOmbudsmanOpen(true); }
     } catch (cause) {
       if (!active.current || sessionError(cause)) return;
       if (cause instanceof ApiError && cause.code === "FORM_VERSION_CHANGED") {
@@ -149,5 +149,5 @@ function SurveyAttempt({sectorId, initialNotice, onReset}: {sectorId: number; in
   if (complete || closed) return <main className="fhdod-auth-page fhdod-public-page"><section className="fhdod-profile-card fhdod-public-card text-center"><FhdodLogo className="fhdod-public-logo" /><p className="eyebrow">{complete ? "Avaliação concluída" : "Avaliação encerrada"}</p><h1>{complete ? "Obrigado pela sua participação" : "Avaliação encerrada"}</h1><p>{complete ? "Suas respostas foram registradas." : "As respostas já confirmadas foram preservadas."}</p>{error && <Alert tone="danger">{error}</Alert>}{complete && <p className="mt-4 mb-2">Próximo formulário em <strong>00:{String(nextFormIn).padStart(2, "0")}</strong></p>}<div className="d-flex flex-wrap justify-content-center gap-2"><Button type="button" onClick={() => void reset()}>{complete ? "Responder agora" : "Iniciar nova avaliação"}</Button><Button type="button" variant="secondary" onClick={() => { setTicketType("compliment"); setOmbudsmanOpen(true); }}>Escrever manifestação</Button>{traceButton}</div></section>{ombudsmanOpen && <PublicOmbudsmanPage sectorId={sectorId} modal initialType={ticketType} onClose={() => setOmbudsmanOpen(false)} />}</main>;
   if (!form || !question) return <main className="fhdod-auth-page fhdod-public-page"><Alert tone="danger">A avaliação está indisponível no momento.</Alert></main>;
   const options: number[] = question.isNps ? question.options : [...question.options].reverse();
-  return <main className="fhdod-auth-page fhdod-public-page"><section className="fhdod-profile-card fhdod-public-card"><FhdodLogo className="fhdod-public-logo" /><p className="eyebrow">Avaliação do atendimento</p><h1 ref={heading} tabIndex={-1}>{question.text}</h1><p className="text-secondary mb-0">Selecione uma nota de {question.minScore} a {question.maxScore}.</p>{remaining !== null && remaining <= 10 && refreshesRemaining === 0 && <Alert tone="warning">O tempo está acabando. Todas as renovações foram utilizadas.</Alert>}{session && remaining !== null && <p role="timer" className="text-secondary mt-2">Tempo restante: {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</p>}{notice && <Alert tone="info">{notice}</Alert>}{error && <Alert tone="danger">{error}</Alert>}<div className="fhdod-score-options" data-nps={question.isNps} role="group" aria-label={`Notas de ${question.minScore} a ${question.maxScore}`}>{options.map((value) => <Button key={value} type="button" variant={selected === value ? "primary" : "secondary"} aria-label={`Nota ${value}`} aria-pressed={selected === value} disabled={busy || !!pending.current} onClick={() => choose(value)}>{value}</Button>)}</div>{busy && <p role="status" aria-live="polite">Enviando resposta…</p>}<div className="fhdod-question-actions">{question.questionKind === "sector" && !question.required && <Button type="button" variant="tertiary" disabled={busy || !!pending.current} onClick={() => choose("skip")}>Pular</Button>}{pending.current && !busy && <Button type="button" onClick={() => void send(pending.current!)}>Tentar enviar novamente</Button>}{session && <Button type="button" variant="tertiary" disabled={busy} onClick={() => void close()}>Encerrar sessão</Button>}{traceButton}</div></section><BaseModal open={expiryPromptOpen} title="Seu tempo está acabando" busy={busy} onRequestClose={() => setExpiryPromptOpen(false)}><p>Seu tempo está acabando, deseja continuar respondendo?</p><Button type="button" loading={busy} onClick={() => { void refresh(); }}>Continuar respondendo</Button>{refreshesRemaining !== null && <p className="small text-secondary mt-3 mb-0">Renovações restantes: {refreshesRemaining}</p>}</BaseModal></main>;
+  return <main className="fhdod-auth-page fhdod-public-page"><section className="fhdod-profile-card fhdod-public-card"><FhdodLogo className="fhdod-public-logo" /><p className="eyebrow">Avaliação do atendimento</p><h1 ref={heading} tabIndex={-1}>{question.text}</h1><p className="text-secondary mb-0">Selecione uma nota de {question.minScore} a {question.maxScore}.</p>{remaining !== null && remaining <= 10 && refreshesRemaining === 0 && <Alert tone="warning">O tempo está acabando. Todas as renovações foram utilizadas.</Alert>}{session && remaining !== null && <p role="timer" className="text-secondary mt-2">Tempo restante: {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</p>}{notice && <Alert tone="info">{notice}</Alert>}{error && <Alert tone="danger">{error}</Alert>}<div className="fhdod-score-options" data-nps={question.isNps} role="group" aria-label={`Notas de ${question.minScore} a ${question.maxScore}`}>{options.map((value) => <Button key={value} type="button" variant={selected === value ? "primary" : "secondary"} aria-label={`Nota ${value}`} aria-pressed={selected === value} disabled={busy || !!pending.current} onClick={() => choose(value)}>{value}</Button>)}</div>{busy && <p role="status" aria-live="polite">Enviando resposta…</p>}<div className="fhdod-question-actions">{question.questionKind === "sector" && !question.required && <Button type="button" variant="tertiary" disabled={busy || !!pending.current} onClick={() => choose("skip")}>Pular</Button>}{pending.current && !busy && <Button type="button" onClick={() => void send(pending.current!)}>Tentar enviar novamente</Button>}{session && <Button type="button" variant="tertiary" disabled={busy} onClick={() => void close()}>Encerrar sessão</Button>}{traceButton}</div></section><BaseModal open={expiryPromptOpen} title="Seu tempo está acabando" busy={busy} onRequestClose={() => setExpiryPromptOpen(false)}><p>Seu tempo está acabando, deseja continuar respondendo?</p><Button type="button" loading={busy} onClick={() => { void refresh(); }}>Continuar respondendo</Button>{refreshesRemaining !== null && <p className="small text-secondary mt-3 mb-0">Renovações restantes: {refreshesRemaining}</p>}</BaseModal>{ombudsmanOpen && <PublicOmbudsmanPage sectorId={sectorId} modal initialType={ticketType} onClose={() => setOmbudsmanOpen(false)} />}</main>;
 }

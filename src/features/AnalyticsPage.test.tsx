@@ -12,7 +12,7 @@ it.each([[-12.8, "-13"], [-0.25, "≈ 0"], [null, "Sem respostas NPS"], [0, "0"]
   const fixture: AnalyticsDashboard = {
     sessions: {started: 8, complete: 6, incomplete: 2, inProgress: 1, endedOrExpired: 1, closedIncomplete: 0, unknownDeadline: 0, completionRate: 75, nonCompletionRate: 25},
     nps: {value: value as number | null, responses: value === null ? 0 : 8, promoters: 2, passives: 3, detractors: 3},
-    shifts: [{id: 10, name: "Plantão A", sector_id: 2, completed: 5, percentage: 100}], unclassifiedCompleted: 1,
+    shifts: [{id: 10, name: "Plantão A", sector_id: 2, completed: 3, percentage: 60}, {id: 11, name: "Plantão A", sector_id: 4, completed: 2, percentage: 40}], unclassifiedCompleted: 1,
     questions: [], sectors: [], daily: [], dailyAnswers: [], distribution: [], ombudsman: [], teamAttributionAvailable: false, responseRate: null, privacyNotice: "", timeZone: "America/Sao_Paulo",
   };
   vi.spyOn(sectorsService, "list").mockResolvedValue([2,4].map(id => ({id, code: String(id), name: `Unidade ${id}`, deletedAt: null})));
@@ -26,6 +26,8 @@ it.each([[-12.8, "-13"], [-0.25, "≈ 0"], [null, "Sem respostas NPS"], [0, "0"]
   expect(container.querySelector(".fhdod-kpi strong")?.textContent).toBe(expected);
   for (const label of ["Iniciadas8","Completas6","Incompletas2","Pesquisas completas6","75%","25%","Plantão A","100%","Sem turno identificado: 1","Unidade 4 — Sem respostas no período · Sem publicação vigente"]) expect(container.textContent).toContain(label);
   expect(container.textContent).not.toContain("Ouvidoria");
+  expect(container.querySelectorAll(".fhdod-chart-panel .fhdod-chart-row")).toBeTruthy();
+  expect(container.textContent?.match(/Plantão A/g)).toHaveLength(1);
   const list = container.querySelector("select[multiple]") as HTMLSelectElement;
   for (const count of [1,2]) {
     await act(async () => {list.options[count-1].selected = true; list.dispatchEvent(new Event("change", {bubbles:true}));});

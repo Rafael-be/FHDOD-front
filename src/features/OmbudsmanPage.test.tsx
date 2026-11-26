@@ -1,0 +1,32 @@
+import {act} from "react";
+import {createRoot} from "react-dom/client";
+import {afterEach, expect, it, vi} from "vitest";
+import {PublicOmbudsmanPage} from "./OmbudsmanPage";
+import {pagesService} from "./pages";
+import {MAX_PUBLIC_MESSAGE_LENGTH, ombudsmanService} from "./ombudsman";
+
+Object.assign(globalThis, {IS_REACT_ACT_ENVIRONMENT: true});
+afterEach(() => {vi.restoreAllMocks(); document.body.innerHTML = "";});
+it("sinaliza excesso no texto e reabilita o envio após correção", async () => {
+  vi.spyOn(pagesService,"get").mockResolvedValue({slug:"lgpd",title:"Política",content:"Texto",versionNumber:1,publishedAt:""});
+  const create = vi.spyOn(ombudsmanService,"create").mockResolvedValue({id:1,status:"open"});
+  const container = document.createElement("div"); document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<PublicOmbudsmanPage sectorId={2} />));
+  await act(async () => {await new Promise(done => setTimeout(done,0));});
+  const textarea = container.querySelector("textarea")!;
+  const consent = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+  const submit = [...container.querySelectorAll("button")].find(button => button.textContent === "Enviar manifestação")!;
+  const setValue = (value: string) => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, value); textarea.dispatchEvent(new Event("input", {bubbles:true})); };
+  await act(async () => {consent.click(); setValue("a".repeat(MAX_PUBLIC_MESSAGE_LENGTH + 1));});
+  expect(textarea.classList.contains("fhdod-message-over-limit")).toBe(true);
+  expect(textarea.getAttribute("aria-invalid")).toBe("true");
+  expect(submit.disabled).toBe(true);
+  expect(container.textContent).toContain("A mensagem excede o limite permitido.");
+  await act(async () => setValue("a".repeat(MAX_PUBLIC_MESSAGE_LENGTH)));
+  expect(textarea.classList.contains("fhdod-message-over-limit")).toBe(false);
+  expect(submit.disabled).toBe(false);
+  await act(async () => submit.click());
+  expect(create).toHaveBeenCalledOnce();
+  await act(async () => root.unmount());
+});

@@ -20,9 +20,9 @@ function Bars({ title, rows }: { title: string; rows: { label: string; value: nu
   return <section className="fhdod-profile-card fhdod-chart-panel"><h2>{title}</h2>{rows.length === 0 ? <p className="text-secondary">Sem dados no período.</p> : rows.map((row) => <div className="fhdod-chart-row" key={row.label}><div><span>{row.label}</span><strong>{format(row.value, 0)}</strong></div><div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)}`}><div className="progress-bar" style={{ width: `${(row.value / max) * 100}%` }} /></div></div>)}</section>;
 }
 function Donut({ rows }: { rows: { label: string; value: number; score: number }[] }) {
-  const total = rows.reduce((sum, row) => sum + row.value, 0); const colors = ["var(--color-primary)", "var(--color-primary-border)", "var(--color-text-muted)", "var(--color-border-strong)", "var(--color-success)"]; let cursor = 0;
-  const stops = rows.map((row) => { const start = cursor; cursor += total ? row.value / total * 100 : 0; return `${colors[row.score - 1]} ${start}% ${cursor}%`; });
-  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>Distribuição de notas gerais</h2>{!rows.length || !total ? <p className="text-secondary">Sem dados no período.</p> : <div className="fhdod-donut-layout"><div className="fhdod-donut" role="img" aria-label={`Distribuição de notas: ${format(total, 0)} respostas`} style={{ background: `conic-gradient(${stops.join(", ")})` }} /><ul className="fhdod-donut-legend">{rows.map(row => <li key={row.label} style={{ "--legend-color": colors[row.score - 1] } as CSSProperties}><span>{row.label}</span><strong>{format(row.value, 0)}</strong><small>{format(row.value / total * 100)}%</small></li>)}</ul></div>}</section>;
+  const total = rows.reduce((sum, row) => sum + row.value, 0); const colors = ["var(--color-primary-deep)", "var(--color-warning)", "var(--color-text-muted)", "var(--color-success)", "var(--color-primary)"]; let cursor = 0;
+  const stops = rows.filter(row => row.value > 0).map((row) => { const start = cursor; cursor += row.value / total * 100; return `${colors[row.score - 1]} ${start}% ${cursor}%`; });
+  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>Distribuição de notas gerais</h2>{!total && <p className="text-secondary">Sem dados no período.</p>}<div className="fhdod-donut-layout"><div className="fhdod-donut" role="img" aria-label={`Distribuição de notas: ${format(total, 0)} respostas`} style={{ background: total ? `conic-gradient(${stops.join(", ")})` : "var(--color-surface-muted)" }} /><ul className="fhdod-donut-legend">{rows.map(row => <li key={row.label} style={{ "--legend-color": colors[row.score - 1] } as CSSProperties}><span>{row.label}</span><strong>{format(row.value, 0)} respostas</strong><small>{total ? format(row.value / total * 100) : "0"}%</small></li>)}</ul></div></section>;
 }
 function Trend({ data }: { data: AnalyticsDashboard["daily"] }) {
   if (!data.length) return <EmptyState title="Sem evolução">Não houve sessões no período.</EmptyState>;
@@ -63,19 +63,26 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
   const selected = filter.sectorIds?.length ? filter.sectorIds : [...names.keys()];
   const data = dashboard.isError ? undefined : dashboard.data;
   const notes = data?.distribution.filter(row => !row.is_nps) ?? [];
+  const noteBuckets = [1, 2, 3, 4, 5].map(score => ({score, responses: notes.find(row => row.score === score)?.responses ?? 0}));
   const ratings = notes.reduce((total, row) => total + row.responses, 0);
   const nps = data?.nps.value;
   const npsLabel = nps == null ? "Sem respostas NPS" : nps !== 0 && Math.abs(nps) < 0.5 ? "≈ 0" : format(nps, 0);
   const percentage = (value: number | null) => value === null ? "Sem respostas" : `${format(value)}%`;
+  const shifts = Array.from(data?.shifts.reduce((groups, row) => {
+    const label = row.name.trim();
+    groups.set(label, (groups.get(label) ?? 0) + Number(row.completed));
+    return groups;
+  }, new Map<string, number>()) ?? []).map(([label, value]) => ({ label, value }));
+  const classifiedTotal = shifts.reduce((sum, row) => sum + row.value, 0);
   return <section className="fhdod-analytics">
-    <div className="fhdod-page-heading"><div><p className="eyebrow">Indicadores</p><h1>Experiência do paciente</h1></div></div>
-    <form className="fhdod-profile-card d-flex flex-wrap align-items-end gap-3 mb-3" onSubmit={apply}>
+    <div className="fhdod-page-heading"><div><p className="eyebrow">Indicadores</p><h1>Experiência do paciente</h1><p>Visão das avaliações e manifestações no período selecionado.</p></div></div>
+    <form className="fhdod-profile-card fhdod-analytics-filters" onSubmit={apply}>
       <label>De<input className="form-control" type="date" value={from} onChange={event => setFrom(event.target.value)} required /></label>
       <label>Até<input className="form-control" type="date" value={to} onChange={event => setTo(event.target.value)} required /></label>
       <label>Setores<select className="form-select" multiple value={ids.map(String)} onChange={event => setIds(Array.from(event.target.selectedOptions, option => Number(option.value)).sort((a,b) => a-b))}>
         {available.map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
       </select><small>Seleção vazia inclui todos os autorizados.</small></label>
-      <label>ID da faixa de turno<input className="form-control" type="number" min="1" value={shift} onChange={event => setShift(event.target.value)} /></label>
+      <label>Faixa de turno (ID)<input className="form-control" type="number" min="1" value={shift} onChange={event => setShift(event.target.value)} /></label>
       <Button type="submit">Aplicar</Button>
     </form>
     {error && <Alert tone="danger">{error}</Alert>}
@@ -95,7 +102,7 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
         {selected.length !== 1 && <Bars title="Pesquisas completas por setor" rows={data.sectors.map(row => ({ label: name(row.sector_id), value: row.complete }))} />}
       </div>
       <div className="fhdod-chart-grid fhdod-chart-grid--equal">
-        <Donut rows={notes.map(row => ({ label: `Nota ${row.score}`, value: row.responses, score: row.score }))} />
+        <Donut rows={noteBuckets.map(row => ({ label: `Nota ${row.score}`, value: row.responses, score: row.score }))} />
         <Bars title="Classificação do NPS" rows={data.nps.responses ? [
           { label: "Bons (9–10)", value: data.nps.promoters }, { label: "Neutros (7–8)", value: data.nps.passives }, { label: "Ruins (0–6)", value: data.nps.detractors }
         ].map(row => ({ ...row, label: `${row.label} · ${percentage(100 * row.value / data.nps.responses)}` })) : []} />
@@ -103,12 +110,11 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
       <section className="fhdod-profile-card fhdod-chart-panel mb-3">
         <h2>Pesquisas por turno</h2>
         {data.sessions.complete === 0 && <p>Sem pesquisas completas no período.</p>}
-        {data.shifts.map(row => <div className="fhdod-chart-row" key={row.id}>
-          <div><span>{row.name} · {name(row.sector_id)}</span><strong>{row.completed}</strong></div>
-          <div className="progress"><div className="progress-bar" style={{width: `${row.percentage ?? 0}%`}} /></div>
+        {shifts.map(row => <div className="fhdod-chart-row" key={row.label}>
+          <div><span>{row.label}</span><strong>{format(row.value, 0)} · {classifiedTotal ? percentage(row.value / classifiedTotal * 100) : "Sem respostas"}</strong></div>
+          <div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)} pesquisas completas`}><div className="progress-bar" style={{width: `${classifiedTotal ? row.value / classifiedTotal * 100 : 0}%`}} /></div>
         </div>)}
-        <ul className="list-inline">{data.shifts.map(row => <li className="list-inline-item" key={row.id}>{row.name} · {name(row.sector_id)} — {row.completed} ({row.percentage === null ? "sem base" : percentage(row.percentage)})</li>)}</ul>
-        <p>Sem turno identificado: {data.unclassifiedCompleted}</p>
+        <p className="small text-secondary mb-0">Sem turno identificado: {format(data.unclassifiedCompleted, 0)}</p>
       </section>
       {canManage && <Bars title="Ouvidoria por tipo e status" rows={data.ombudsman.map(row => ({ label: `${name(row.sector_id)} · ${row.ticket_type} · ${row.status}`, value: row.tickets }))} />}
       <p className="small text-secondary">{data.privacyNotice}</p>
