@@ -9,6 +9,17 @@ export interface Ticket {
 }
 export interface TicketPage { items: Ticket[]; page: number; pageSize: number; total: number }
 export interface TicketFilters { sectorId?: number; ticketType?: TicketType; status?: TicketStatus; page?: number; pageSize?: number }
+export const MAX_PUBLIC_MESSAGE_LENGTH = 300;
+export function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : "";
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+export function phonePayload(value: string): string | undefined {
+  const digits = value.replace(/\D/g, "");
+  return digits || undefined;
+}
 export const ombudsmanService = {
   create(input: { sectorId: number; ticketType: TicketType; body: string; phone?: string; policyAccepted: true }) {
     return api.request<{ id: number; status: TicketStatus }>("/api/public/ombudsman/tickets", { method: "POST", body: input, csrf: false, refreshOnUnauthorized: false });

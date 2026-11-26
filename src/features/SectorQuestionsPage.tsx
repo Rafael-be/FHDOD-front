@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/Button";
+import { BaseModal } from "../components/ui/BaseModal";
 import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { ApiError } from "../services/http";
 import { sectorsService, type Sector } from "./sectors";
@@ -30,6 +31,8 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const allowNavigation = useRef(false);
 
   const load = useCallback(async () => {
     const [state, ready, history, available, sectors] = await Promise.all([
@@ -45,13 +48,12 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
-    const navigate = (event: Event) => {
-      if (!window.confirm("Há alterações não salvas. Sair do editor e descartá-las?")) event.preventDefault();
-    };
+    const navigate = (event: Event) => { if (allowNavigation.current) { allowNavigation.current = false; return; } event.preventDefault(); setShowLeaveConfirm(true); };
     window.addEventListener("beforeunload", warn);
     window.addEventListener("fhdod:beforeNavigate", navigate);
     return () => { window.removeEventListener("beforeunload", warn); window.removeEventListener("fhdod:beforeNavigate", navigate); };
   }, [dirty]);
+  const leaveWithoutSaving = () => { allowNavigation.current = true; setShowLeaveConfirm(false); window.dispatchEvent(new Event("fhdod:beforeNavigate", { cancelable: true })); };
 
   const change = (next: DraftItem[]) => { setItems(normalizeDraftItems(next)); setDirty(true); setMessage(undefined); };
   const move = (index: number, delta: number) => {
@@ -142,5 +144,9 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       {versions.length === 0 ? <p>Nenhuma versão publicada.</p> : versions.map((version) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={version.id}><span>Versão {version.versionNumber}{version.current ? " · vigente" : ""}<small className="d-block text-secondary">Publicada em {formatPublishedAt(version.publishedAt)}</small></span><Button type="button" variant="tertiary" onClick={() => { void run(async () => { setSelectedVersion(await formDraftService.version(sectorId, version.id)); }); }}>Visualizar</Button></div>)}
       {selectedVersion && <div className="mt-3"><h3 className="h6">Versão {versions.find((version) => version.id === selectedVersion.versionId)?.versionNumber ?? selectedVersion.versionId}</h3><QuestionPreview items={selectedVersion.items} /><Button type="button" disabled={busy || dirty || conflict} onClick={() => { void restore(selectedVersion.versionId); }}>Restaurar para rascunho</Button></div>}
     </section>
+    <BaseModal open={showLeaveConfirm} title="Alterações não salvas" onRequestClose={() => setShowLeaveConfirm(false)}>
+      <p>Você possui alterações no formulário que ainda não foram salvas. Se sair agora, essas alterações serão perdidas.</p>
+      <div className="d-flex flex-wrap justify-content-end gap-2"><Button type="button" variant="tertiary" onClick={() => setShowLeaveConfirm(false)}>Continuar editando</Button><Button type="button" variant="destructive" onClick={leaveWithoutSaving}>Sair sem salvar</Button></div>
+    </BaseModal>
   </section>;
 }
