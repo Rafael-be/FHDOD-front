@@ -35,13 +35,13 @@ describe("PublicSubmissionPage", () => {
     await render();
     expect(container.textContent).toContain("Recomendaria este atendimento?");
     expect(start).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Pergunta 1 de 2");
+    expect(container.querySelector(".fhdod-question-progress")).toBeNull();
     await act(async () => { button("0").click(); });
     expect(start).toHaveBeenCalledOnce();
     expect(start.mock.calls[0][1]).toBe(42);
     expect(start.mock.calls[0][4]).toEqual({ questionId: 1, questionVersionId: 2, status: "answered", score: 0 });
-    expect(container.textContent).toContain("Pergunta 2 de 2");
-    expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("1");
+    expect(container.textContent).toContain("Como foi o atendimento?");
+    expect([...container.querySelectorAll(".fhdod-score-options button")].map((item) => item.textContent)).toEqual(["5", "4", "3", "2", "1"]);
     expect(container.querySelector("h1")?.getAttribute("tabindex")).toBe("-1");
   });
 
