@@ -54,19 +54,29 @@ export function OmbudsmanPage() {
   const [sectorId, setSectorId] = useState(""); const [type, setType] = useState(""); const [status, setStatus] = useState("");
   const [pageNumber, setPageNumber] = useState(1); const [selected, setSelected] = useState<Ticket | null>(null);
   const [error, setError] = useState<string>(); const [busy, setBusy] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const handleError = (cause: unknown) => {
+    if (cause instanceof ApiError && cause.status === 403 && cause.code !== "CSRF_INVALID") {
+      setPage(null);
+      setSelected(null);
+      setForbidden(true);
+    }
+    setError(messageOf(cause));
+  };
   const load = async (nextPage = pageNumber) => {
     setBusy(true); setError(undefined);
     try { setPage(await ombudsmanService.list({ page: nextPage, pageSize: 20, sectorId: sectorId ? Number(sectorId) : undefined, ticketType: type ? type as TicketType : undefined, status: status ? status as TicketStatus : undefined })); setPageNumber(nextPage); }
-    catch (cause) { if (cause instanceof ApiError && cause.status === 403) { setPage(null); setSelected(null); } setError(messageOf(cause)); } finally { setBusy(false); }
+    catch (cause) { handleError(cause); } finally { setBusy(false); }
   };
   useEffect(() => { void load(1); sectorsService.list().then(setSectors).catch(() => undefined); }, []);
-  const detail = async (id: number) => { try { setSelected(await ombudsmanService.get(id)); } catch (cause) { setError(messageOf(cause)); } };
+  const detail = async (id: number) => { try { setSelected(await ombudsmanService.get(id)); } catch (cause) { handleError(cause); } };
   const update = async (next: TicketStatus) => {
     if (!selected || !window.confirm(`Alterar status para ${statuses[next]}?`)) return;
     setBusy(true); setError(undefined);
     try { await ombudsmanService.updateStatus(selected.id, next); await detail(selected.id); await load(); }
-    catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
+    catch (cause) { handleError(cause); } finally { setBusy(false); }
   };
+  if (forbidden) return <Alert tone="danger">Acesso à Ouvidoria administrativa negado.</Alert>;
   const detailContent: ReactNode = selected && <>
     <p><strong>{types[selected.ticketType]}</strong> · {statuses[selected.status]}</p><p style={{ whiteSpace: "pre-wrap" }}>{selected.body}</p><p>Telefone: {selected.phone ? formatPhone(selected.phone) : "não informado"}</p><p className="small text-secondary">Registrada em {new Date(selected.occurredAt).toLocaleString("pt-BR")}</p>
     <div className="d-flex flex-wrap gap-2">{nextStatuses[selected.status].filter((next) => next !== "contact_attempt" || Boolean(selected.phone)).map((next) => <Button key={next} type="button" variant="secondary" disabled={busy} onClick={() => { void update(next); }}>{statuses[next]}</Button>)}</div>

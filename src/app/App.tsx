@@ -60,9 +60,9 @@ function AuthenticatedApp() {
   if (path === "/nps/novo") return user.role === "superuser" ? shell(<QuestionCreationPage type="nps" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
   if (path === "/paginas/lgpd") return user.role === "superuser" ? shell(<EditPage />) : shell(<ErrorState />);
   if (path === "/planilhas-turnos") return user.role === "superuser" ? shell(<ShiftSheetsPage />) : shell(<ErrorState />);
-  if (path === "/tv-wall/config") return user.role === "superuser" ? shell(<TvWallConfig userId={user.id} />) : shell(<ErrorState />);
+  if (path === "/tv-wall/config") return user.role === "superuser" ? shell(<TvWallConfig userId={user.id} />) : shell(<EmptyState title="Acesso restrito">Esta página exige acesso de superusuário.</EmptyState>);
   if (path === "/auditoria") return user.role === "superuser" ? shell(<AuditPage />) : shell(<ErrorState />);
-  if (path === "/ouvidoria") return user.role === "superuser" ? shell(<OmbudsmanPage />) : shell(<ErrorState />);
+  if (path === "/ouvidoria") return user.role === "superuser" ? shell(<OmbudsmanPage />) : shell(<EmptyState title="Acesso restrito">Esta página exige acesso de superusuário.</EmptyState>);
   if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
   if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
