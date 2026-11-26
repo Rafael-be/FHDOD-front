@@ -117,4 +117,13 @@ describe("PublicSubmissionPage", () => {
     await act(async () => { button("Iniciar nova avaliação").click(); });
     expect(container.textContent).toContain("Recomendaria este atendimento?");
   });
+  it("opens ombudsman after a confirmed low NPS score", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    vi.spyOn(submissionsService, "start").mockResolvedValue(started);
+    vi.spyOn(submissionsService, "answer").mockResolvedValueOnce({ sessionId: "session-1", status: "incomplete", answered: true, expiresAt: new Date(Date.now() + 120000).toISOString() }).mockResolvedValueOnce({ sessionId: "session-1", status: "complete", answered: true, expiresAt: new Date(Date.now() + 120000).toISOString() });
+    await render();
+    await act(async () => { button("0").click(); });
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+  });
 });

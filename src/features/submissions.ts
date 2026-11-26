@@ -11,6 +11,7 @@ export interface SubmissionQuestion {
   options: number[];
   minScore: number;
   maxScore: number;
+  lowScoreThreshold?: number;
 }
 export interface CurrentForm { sectorId: number; formVersionId: number; questions: SubmissionQuestion[] }
 export interface CachedForm { form: CurrentForm; etag?: string }
