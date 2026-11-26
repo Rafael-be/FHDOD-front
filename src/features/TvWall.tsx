@@ -2,14 +2,12 @@ import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Alert, LoadingState } from "../components/ui/Feedback";
 import { Button } from "../components/ui/Button";
+import { loadPublicDisplay, type Indicator } from "./tvDisplay";
 import { api } from "../services/http";
 import { sectorsService } from "./sectors";
 
 const titles = { completionRate: "Taxa de conclusão", nps: "NPS médio", npsGroups: "Classificação do NPS" };
 type Metric = keyof typeof titles;
-type Indicator = {id: "completionRate" | "nps"; value: number | null} |
-  {id: "npsGroups"; value: {promoters: number; passives: number; detractors: number} | null};
-interface Display {periodDays: number; refreshSeconds: number; indicators: Indicator[]}
 interface Settings {periodDays: number; refreshSeconds: number; indicators: Metric[]; sectorIds: number[]}
 const configPath = "/api/tv-wall/config";
 
@@ -27,7 +25,7 @@ export function TvWall() {
   const [fullscreenError, setFullscreenError] = useState(false);
   const wall = useQuery({
     queryKey: ["public-tv-wall"],
-    queryFn: ({signal}) => api.request<Display>("/api/public/tv-wall", {signal, credentials: "omit", refreshOnUnauthorized: false, cache: "no-store"}),
+    queryFn: ({signal}) => loadPublicDisplay(signal),
     refetchInterval: query => (query.state.data?.refreshSeconds ?? 60) * 1000,
     refetchIntervalInBackground: true, retry: false, gcTime: 0,
   });

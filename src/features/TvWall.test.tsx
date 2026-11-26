@@ -3,6 +3,7 @@ import {createRoot} from "react-dom/client";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import {afterEach, expect, it, vi} from "vitest";
 import {TvWallConfig} from "./TvWall";
+import {loadPublicDisplay} from "./tvDisplay";
 import {App} from "../app/App";
 import {api} from "../services/http";
 import {sectorsService} from "./sectors";
@@ -44,4 +45,9 @@ it("salva a ordem pré-visualizada e os filtros carregados pela API", async () =
   expect(request).toHaveBeenCalledWith("/api/tv-wall/config", {method:"PUT",body:{...config, indicators:["completionRate","nps"]}});
   await act(async () => root.unmount());
   client.clear();
+});
+
+it.each([{id:"ombudsman",value:"texto privado"}, {id:"nps",value:"texto privado"}, {id:"npsGroups",value:{promoters: "texto privado"}}])("rejeita dados fora do contrato público", async (indicator) => {
+  vi.spyOn(api,"request").mockResolvedValue({periodDays:7,refreshSeconds:60,indicators:[indicator]});
+  await expect(loadPublicDisplay(new AbortController().signal)).rejects.toThrow("painel inválido");
 });
