@@ -65,8 +65,13 @@ function reportParams(filter: AnalyticsFilter) {
 }
 
 export const analyticsService = {
-  dashboard(filter: AnalyticsFilter, signal?: AbortSignal) {
-    return api.request<AnalyticsDashboard>(`/api/analytics/dashboard?${reportParams(filter)}`, { signal });
+  async dashboard(filter: AnalyticsFilter, signal?: AbortSignal) {
+    const report = await api.request<AnalyticsDashboard>(`/api/analytics/dashboard?${reportParams(filter)}`, { signal });
+    if (!Array.isArray(report?.shifts) || report.sessions?.completionRate === undefined ||
+        report.sessions.nonCompletionRate === undefined || report.sessions.inProgress === undefined) {
+      throw new Error("A API ainda não disponibiliza os indicadores de conclusão e turno.");
+    }
+    return report;
   },
   questions(filter: AnalyticsFilter, signal?: AbortSignal) {
     return api.request<GlobalQuestionMetric[]>(`/api/analytics/global-questions?${reportParams(filter)}`, { signal });
