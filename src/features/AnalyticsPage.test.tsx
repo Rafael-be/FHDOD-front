@@ -90,7 +90,7 @@ it("agrega várias faixas históricas do mesmo turno e combina filtro de setor",
     expect(dashboard.mock.calls.filter(call=>call[0].sectorId===2 && call[0].shiftRangeId===13)).toHaveLength(0);
     expect(dashboard.mock.calls.some(call=>call[0].sectorId===2 && call[0].shiftRangeId===10)).toBe(true);
     expect(questions.mock.calls.some(call=>call[0].sectorId===2 && call[0].shiftRangeId===10)).toBe(true);
-    expect(container.textContent).toContain("Madrugada20");
+    await vi.waitFor(() => expect(container.textContent).toContain("Madrugada20"));
   } finally {await cleanup();}
 });
 
