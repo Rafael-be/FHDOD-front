@@ -150,6 +150,23 @@ export class HttpClient {
     return operation;
   }
 
+  async downloadGet(path: string): Promise<{ blob: Blob; disposition: string | null }> {
+    const execute = async (canRefresh: boolean): Promise<{ blob: Blob; disposition: string | null }> => {
+      const response = await fetch(endpoint(this.baseUrl, path), {
+        credentials: "include", headers: { Accept: "application/pdf, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json" },
+      });
+      if (response.status === 401 && canRefresh) { await this.refresh(); return execute(false); }
+      if (!response.ok) {
+        const payload = await readPayload(response);
+        const error = responseError(payload);
+        if (response.status === 401) this.onSessionExpired?.();
+        throw new ApiError(error?.message ?? "Não foi possível baixar o relatório.", response.status, error?.code, error?.details);
+      }
+      return { blob: await response.blob(), disposition: response.headers.get("Content-Disposition") };
+    };
+    return execute(true);
+  }
+
   async download(path: string, body: unknown): Promise<{ blob: Blob; disposition: string | null }> {
     const execute = async (canRefresh: boolean): Promise<{ blob: Blob; disposition: string | null }> => {
       const response = await fetch(endpoint(this.baseUrl, path), {

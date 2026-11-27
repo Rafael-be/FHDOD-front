@@ -38,8 +38,12 @@ export function reportFilename(disposition: string | null, filters: ReportFilter
   if (supplied && /^[a-zA-Z0-9._-]+\.(pdf|xlsx)$/.test(supplied)) return supplied;
   return `fhdod-relatorio-${filters.type}-${filters.from}-${filters.to}.${format}`;
 }
+export interface ReportJob { jobId: string; status: "pending" | "processing" | "completed" | "failed" | "expired"; attempts: number; expiresAt: string; message?: string }
 export const reportsService = {
   types() { return api.request<ReportTypeOption[]>("/api/reports/types"); },
   preview(filters: ReportFilters) { return api.request<ReportModel>("/api/reports/preview", { method: "POST", body: filters }); },
+  createJob(filters: ReportFilters, format: ReportFormat) { return api.request<ReportJob>("/api/reports/jobs", { method: "POST", body: { ...filters, format } }); },
+  jobStatus(jobId: string) { return api.request<ReportJob>(`/api/reports/jobs/${encodeURIComponent(jobId)}`); },
+  downloadJob(jobId: string) { return api.downloadGet(`/api/reports/jobs/${encodeURIComponent(jobId)}/download`); },
   download(filters: ReportFilters, format: ReportFormat) { return api.download("/api/reports/download", { ...filters, format }); },
 };

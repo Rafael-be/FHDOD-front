@@ -6,6 +6,7 @@ export interface AnalyticsFilter {
   sectorId?: number;
   sectorIds?: number[];
   shiftRangeId?: number;
+  shiftName?: "Madrugada" | "Dia" | "Noite";
 }
 
 interface ScoreBucket {
@@ -105,6 +106,7 @@ function reportParams(filter: AnalyticsFilter) {
   if (ids.length > 1) query.set("sectorIds", ids.join(","));
   else if (ids[0] || filter.sectorId) query.set("sectorId", String(ids[0] ?? filter.sectorId));
   if (filter.shiftRangeId) query.set("shiftRangeId", String(filter.shiftRangeId));
+  if (filter.shiftName) query.set("shiftName", filter.shiftName);
   return query;
 }
 
