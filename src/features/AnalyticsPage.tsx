@@ -4,7 +4,7 @@ import { Button } from "../components/ui/Button";
 import { useQuery } from "@tanstack/react-query";
 import { GlobalQuestions } from "./GlobalQuestions";
 import { CriticalRanking, QuestionDistribution, SatisfactionHeatmap, ShiftOverview } from "./AnalyticsInsights";
-import { npsMean, satisfaction } from "./analyticsInsights";
+import { npsMean, satisfaction } from "./analyticsMetrics";
 import { sectorsService, type Sector } from "./sectors";
 import { analyticsService, completionIndicators, type AnalyticsDashboard, type AnalyticsFilter } from "./analytics";
 import { dashboardForShift, questionsForShift, shiftNames, type ShiftName } from "./analyticsAggregation";

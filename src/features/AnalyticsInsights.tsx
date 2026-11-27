@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { CriticalQuestionsReport, QuestionDistributionReport, SectorHeatmapMetric, AnalyticsDashboard } from "./analytics";
-import { shiftTotals } from "./analyticsInsights";
+import { shiftTotals } from "./analyticsMetrics";
 
 const number = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 1});
 const count = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 0});

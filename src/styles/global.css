@@ -318,6 +318,15 @@ small, .small { font-size: .875rem; }
 .fhdod-score-options .fhdod-button { min-width: 0; min-height: 52px; padding: var(--space-2); font-size: 1rem; }
 .fhdod-score-options .fhdod-button--secondary { border-color: var(--color-border-strong); color: var(--color-text); }
 .fhdod-score-options .fhdod-button--secondary:hover { border-color: var(--color-primary); }
+.fhdod-satisfaction-rating { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(.25rem, 1.5vw, 1rem); margin: var(--space-5) 0 var(--space-6); }
+.fhdod-satisfaction-rating__option { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-width: 0; min-height: 140px; padding: .65rem .35rem .5rem; gap: .25rem; border: 2px solid transparent; border-radius: var(--radius-md); color: var(--color-text); }
+.fhdod-satisfaction-rating__option:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-primary-subtle); }
+.fhdod-satisfaction-rating__option:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.fhdod-satisfaction-rating__option:active:not(:disabled) { transform: translateY(1px); }
+.fhdod-satisfaction-rating__option:disabled { cursor: not-allowed; opacity: .65; }
+.fhdod-satisfaction-rating__option.fhdod-button--primary { border-color: var(--color-primary); background: var(--color-primary-subtle); color: var(--color-text); }
+.fhdod-satisfaction-rating__face { display: block; width: clamp(54px, 10vw, 108px); height: clamp(54px, 10vw, 108px); object-fit: contain; }
+.fhdod-satisfaction-rating__score { font-size: clamp(1rem, 2vw, 1.25rem); font-weight: 800; line-height: 1.3; }
 .fhdod-question-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .fhdod-question-actions .fhdod-button--primary { min-width: 160px; }
 .fhdod-question-actions .fhdod-question-close { order: 0; color: var(--color-text-muted); }
@@ -356,6 +365,9 @@ small, .small { font-size: .875rem; }
   .fhdod-question-actions .fhdod-question-skip { margin-left: auto; }
 }
 @media (max-width: 390px) {
+  .fhdod-satisfaction-rating { gap: .1rem; }
+  .fhdod-satisfaction-rating__option { min-height: 112px; padding-inline: .1rem; }
+  .fhdod-satisfaction-rating__face { width: clamp(46px, 16vw, 62px); height: clamp(46px, 16vw, 62px); }
   .fhdod-kpi strong { font-size: 1.4rem; }
   .fhdod-score-options[data-nps="true"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fhdod-question-actions .fhdod-button { flex: 1 1 auto; }

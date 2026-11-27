@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { criticalQuestions, npsMean, satisfaction, shiftTotals } from "./analyticsInsights";
+import { criticalQuestions, npsMean, satisfaction, shiftTotals } from "./analyticsMetrics";
 import type { AnalyticsDashboard, GlobalQuestionMetric } from "./analytics";
 
 const report = (changes: Partial<AnalyticsDashboard> = {}): AnalyticsDashboard => ({
