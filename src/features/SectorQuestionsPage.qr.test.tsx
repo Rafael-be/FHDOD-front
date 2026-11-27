@@ -1,0 +1,41 @@
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import QRCode from "qrcode";
+import { afterEach, expect, it, vi } from "vitest";
+import { SectorQuestionsPage } from "./SectorQuestionsPage";
+import { formDraftService } from "./formDraft";
+import { questionsService } from "./questions";
+import { sectorsService } from "./sectors";
+import { submissionsService } from "./submissions";
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); document.body.innerHTML = ""; });
+
+it("mostra o QR somente no modal e preserva o link e a edição", async () => {
+  vi.stubEnv("VITE_PUBLIC_APP_URL", "https://hospital.org.br");
+  vi.spyOn(formDraftService, "get").mockResolvedValue({ sectorId: 5, publishedVersionId: 9, operationalStatus: "active", missingRequirements: [], draftStatus: "published", revision: 1, items: [] });
+  vi.spyOn(formDraftService, "readiness").mockResolvedValue({ operationalStatus: "active", draftStatus: "published", status: "active", missingRequirements: [], publishedVersionId: 9 });
+  vi.spyOn(formDraftService, "history").mockResolvedValue([]);
+  vi.spyOn(questionsService, "catalog").mockResolvedValue({ items: [], page: 1, pageSize: 100, total: 0 });
+  vi.spyOn(sectorsService, "list").mockResolvedValue([{ id: 5, name: "Internação", code: "INT", deletedAt: null }]);
+  vi.spyOn(submissionsService, "currentForm").mockResolvedValue({ form: { sectorId: 5, formVersionId: 9, questions: [] } });
+  const generate = vi.spyOn(QRCode, "toDataURL").mockResolvedValue("data:image/png;base64,AA==" as never);
+  const host = document.createElement("div"); document.body.append(host);
+  const root = createRoot(host);
+  await act(async () => root.render(<SectorQuestionsPage sectorId={5} />));
+  await act(async () => { await Promise.resolve(); });
+  const button = (label: string) => [...host.querySelectorAll<HTMLButtonElement>("button")].find(item => item.textContent === label)!;
+  expect(button("Visualizar QR Code")).toBeDefined();
+  expect(host.querySelector(".fhdod-qr-preview")).toBeNull();
+  expect(generate).not.toHaveBeenCalled();
+  await act(async () => button("Visualizar QR Code").click());
+  await act(async () => { await Promise.resolve(); });
+  expect(host.querySelector("[role=dialog] h2")?.textContent).toBe("QR Code do formulário");
+  expect(generate).toHaveBeenCalledWith("https://hospital.org.br/avaliacao/5", expect.any(Object));
+  expect(host.querySelector<HTMLAnchorElement>(".fhdod-qr-url a")?.href).toBe("https://hospital.org.br/avaliacao/5");
+  expect(host.querySelector(".fhdod-qr-preview")).not.toBeNull();
+  await act(async () => button("Fechar").click());
+  expect(host.querySelector(".fhdod-qr-preview")).toBeNull();
+  expect(host.querySelector("#new-sector-question")).not.toBeNull();
+  await act(async () => root.unmount());
+});

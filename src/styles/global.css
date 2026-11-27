@@ -138,10 +138,7 @@ small, .small { font-size: .875rem; }
 .fhdod-account-summary ul { padding-left: 1.2rem; margin-bottom: 0; }
 .fhdod-sector-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: .35rem; min-width: 0; }
 .fhdod-sector-actions .fhdod-button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 38px; white-space: nowrap; }
-.fhdod-editor-intro { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 320px); gap: var(--space-4); align-items: start; margin-bottom: var(--space-4); }
-.fhdod-editor-qr { grid-column: 2; grid-row: 1 / span 2; }
-.fhdod-editor-qr h2 { font-size: 1.2rem; }
-.fhdod-editor-qr .fhdod-qr-actions .fhdod-button { flex: 1 1 auto; }
+.fhdod-editor-intro { margin-bottom: var(--space-4); }
 .fhdod-choice-group { min-width: 0; }
 .fhdod-choice-option { display: flex; align-items: center; gap: .65rem; padding: .75rem .9rem; margin-bottom: .5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; line-height: 1.35; }
 .fhdod-choice-option:has(input:checked) { border-color: var(--color-primary); background: #fff5f5; }
@@ -150,7 +147,7 @@ small, .small { font-size: .875rem; }
 .fhdod-sector-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: .5rem; }
 .fhdod-question-creator { max-width: 760px; }
 .fhdod-question-creator-actions { display: flex; justify-content: flex-end; gap: .7rem; flex-wrap: wrap; }
-@media (max-width: 850px) { .fhdod-account-layout, .fhdod-editor-intro { grid-template-columns: minmax(0, 1fr); } .fhdod-editor-qr { grid-column: auto; grid-row: auto; } }
+@media (max-width: 850px) { .fhdod-account-layout { grid-template-columns: minmax(0, 1fr); } }
 .fhdod-auth-page { display: grid; justify-items: center; align-content: center; min-height: 100vh; padding: var(--space-5) var(--space-4); background: var(--color-background); }
 .fhdod-auth-page > .fhdod-auth-card { max-width: 440px; }
 .fhdod-auth-page > .fhdod-profile-card { max-width: 780px; }

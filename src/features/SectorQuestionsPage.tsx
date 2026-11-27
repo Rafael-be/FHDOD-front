@@ -34,6 +34,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   const [conflict, setConflict] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const allowNavigation = useRef(false);
 
   const load = useCallback(async () => {
@@ -109,7 +110,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   return <section>
     <div className="fhdod-editor-intro"><div className="fhdod-page-heading"><div><p className="eyebrow">Setor {sectorId}</p><h1>Editor do formulário</h1>
       <p>Vigente: {draft.publishedVersionId ? `versão ID ${draft.publishedVersionId}` : "sem publicação"} · Rascunho: {draft.draftStatus === "drafting" ? `revisão ${draft.revision}` : "nenhum"}</p>
-    </div></div>{sector && draft.publishedVersionId && <aside className="fhdod-profile-card fhdod-editor-qr"><h2>QR Code do setor</h2><SectorQrContent sector={sector} /><p className="small text-secondary mb-0">Disponibilize este QR Code aos pacientes para iniciar a avaliação.</p></aside>}</div>
+    </div>{sector && draft.publishedVersionId && <Button type="button" variant="secondary" onClick={() => setShowQr(true)}>Visualizar QR Code</Button>}</div></div>
     <p className="text-secondary">Setor selecionado: <strong>{sector?.name ?? sectorId}</strong>{sector?.code ? ` (${sector.code})` : ""}</p>
     {message && <Alert tone="success">{message}</Alert>}
     {error && <Alert tone="danger">{error}</Alert>}
@@ -149,6 +150,10 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
     <BaseModal open={showLeaveConfirm} title="Alterações não salvas" onRequestClose={() => setShowLeaveConfirm(false)}>
       <p>Você possui alterações no formulário que ainda não foram salvas. Se sair agora, essas alterações serão perdidas.</p>
       <div className="d-flex flex-wrap justify-content-end gap-2"><Button type="button" variant="tertiary" onClick={() => setShowLeaveConfirm(false)}>Continuar editando</Button><Button type="button" variant="destructive" onClick={leaveWithoutSaving}>Sair sem salvar</Button></div>
+    </BaseModal>
+    <BaseModal open={showQr} title="QR Code do formulário" onRequestClose={() => setShowQr(false)}>
+      {showQr && sector && <SectorQrContent sector={sector} />}
+      <div className="d-flex justify-content-end mt-3"><Button type="button" variant="secondary" onClick={() => setShowQr(false)}>Fechar</Button></div>
     </BaseModal>
   </section>;
 }
