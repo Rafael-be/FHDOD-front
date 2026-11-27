@@ -4,10 +4,10 @@ import { BaseModal } from "../components/ui/BaseModal";
 import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { ApiError } from "../services/http";
 import { sectorsService, type Sector } from "./sectors";
-import { formDraftService, normalizeDraftItems, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
+import { formDraftService, normalizeDraftItems, readinessFingerprint, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
 import { questionsService, type CatalogQuestion } from "./questions";
 import { QuestionPreview } from "./QuestionPreview";
-import { SectorQrContent } from "./SectorQrDialog";
+import { SectorQrDialog } from "./SectorQrDialog";
 
 const requirementNames: Record<string, string> = {
   shift_ranges: "planilha de turnos", nps: "pergunta NPS", standard_questions: "pergunta padrão",
@@ -34,6 +34,8 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   const [conflict, setConflict] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [readinessKey, setReadinessKey] = useState("");
   const allowNavigation = useRef(false);
 
   const load = useCallback(async () => {
@@ -42,7 +44,8 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       formDraftService.history(sectorId), questionsService.catalog(sectorId),
       sectorsService.list(),
     ]);
-    setDraft(state); setSector(sectors.find((item) => item.id === sectorId) ?? null); setItems(normalizeDraftItems(state.items)); setReadiness(ready); setVersions(history);
+    const normalizedItems = normalizeDraftItems(state.items);
+    setDraft(state); setSector(sectors.find((item) => item.id === sectorId) ?? null); setItems(normalizedItems); setReadiness(ready); setReadinessKey(readinessFingerprint(state.revision, normalizedItems)); setVersions(history);
     setCatalog(available.items.filter((item) => !item.deletedAt)); setCatalogPage(1); setCatalogTotal(available.total);
     setDirty(false); setConflict(false);
   }, [sectorId]);
@@ -57,7 +60,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   }, [dirty]);
   const leaveWithoutSaving = () => { allowNavigation.current = true; setShowLeaveConfirm(false); window.dispatchEvent(new Event("fhdod:beforeNavigate", { cancelable: true })); };
 
-  const change = (next: DraftItem[]) => { setItems(normalizeDraftItems(next)); setDirty(true); setMessage(undefined); };
+  const change = (next: DraftItem[]) => { setItems(normalizeDraftItems(next)); setReadiness(null); setReadinessKey(""); setDirty(true); setMessage(undefined); };
   const move = (index: number, delta: number) => {
     const copy = [...items]; const target = index + delta;
     if (target < 0 || target >= copy.length || copy[index].isNps || copy[target].isNps) return;
@@ -109,7 +112,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   return <section>
     <div className="fhdod-editor-intro"><div className="fhdod-page-heading"><div><p className="eyebrow">Setor {sectorId}</p><h1>Editor do formulário</h1>
       <p>Vigente: {draft.publishedVersionId ? `versão ID ${draft.publishedVersionId}` : "sem publicação"} · Rascunho: {draft.draftStatus === "drafting" ? `revisão ${draft.revision}` : "nenhum"}</p>
-    </div></div>{sector && draft.publishedVersionId && <aside className="fhdod-profile-card fhdod-editor-qr"><h2>QR Code do setor</h2><SectorQrContent sector={sector} /><p className="small text-secondary mb-0">Disponibilize este QR Code aos pacientes para iniciar a avaliação.</p></aside>}</div>
+    </div><div className="fhdod-editor-heading-actions">{sector && <Button type="button" variant="secondary" onClick={() => document.getElementById("sector-question-editor")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Pergunta setorial</Button>}{sector && draft.publishedVersionId && <Button type="button" variant="secondary" onClick={() => setQrOpen(true)}>QR Code</Button>}</div></div></div>
     <p className="text-secondary">Setor selecionado: <strong>{sector?.name ?? sectorId}</strong>{sector?.code ? ` (${sector.code})` : ""}</p>
     {message && <Alert tone="success">{message}</Alert>}
     {error && <Alert tone="danger">{error}</Alert>}
@@ -129,7 +132,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       </div>)}
     </section>
     <QuestionPreview items={items} />
-    <section className="fhdod-profile-card mb-3"><h2 className="h5">Adicionar pergunta setorial</h2>
+    <section id="sector-question-editor" className="fhdod-profile-card mb-3"><h2 className="h5">Adicionar pergunta setorial</h2>
       <label className="form-label" htmlFor="new-sector-question">Texto</label><textarea id="new-sector-question" className="form-control mb-2" maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} />
       <Button type="button" disabled={!text.trim() || busy} onClick={() => { change([...items.filter((item) => !item.isNps), { questionId: null, sourceQuestionVersionId: null, questionKind: "sector", isNps: false, text: text.trim(), position: items.length + 1, canEditContent: true }, ...items.filter((item) => item.isNps)]); setText(""); }}>Adicionar ao rascunho</Button>
     </section>
@@ -137,15 +140,16 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       {available.length === 0 ? <p>Nenhum item disponível para associação nesta página do catálogo.</p> : available.map((question) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={question.id}><span>{question.text} {question.isNps ? "(NPS)" : ""}</span><Button type="button" variant="secondary" disabled={busy} onClick={() => addCatalog(question)}>Associar</Button></div>)}
       {catalogPage * 100 < catalogTotal && <Button type="button" variant="tertiary" disabled={busy} onClick={() => { void run(async () => { const next = catalogPage + 1; const result = await questionsService.catalog(sectorId, next); setCatalog((current) => [...current, ...result.items.filter((item) => !item.deletedAt)]); setCatalogPage(next); setCatalogTotal(result.total); }); }}>Carregar mais perguntas</Button>}
     </section>
-    <div className="fhdod-editor-actions d-flex flex-wrap gap-2 mb-3"><Button type="button" variant="secondary" loading={busy} disabled={!dirty || conflict} onClick={() => { void save(); }}>Salvar rascunho</Button>
+    <div className="fhdod-editor-actions d-flex flex-wrap gap-2 mb-3"><Button type="button" variant="secondary" disabled={busy || readinessKey === readinessFingerprint(draft.revision, items)} onClick={() => { void run(async () => { setReadiness(await formDraftService.readiness(sectorId)); setReadinessKey(readinessFingerprint(draft.revision, items)); }); }}>Verificar prontidão</Button>
+      <Button type="button" variant="secondary" loading={busy} disabled={!dirty || conflict} onClick={() => { void save(); }}>Salvar rascunho</Button>
       <Button type="button" variant="tertiary" disabled={busy || (draft.draftStatus !== "drafting" && !dirty)} onClick={() => { void discard(); }}>Descartar</Button>
-      <Button type="button" variant="secondary" disabled={busy} onClick={() => { void run(async () => { setReadiness(await formDraftService.readiness(sectorId)); }); }}>Verificar prontidão</Button>
       <Button type="button" disabled={busy || dirty || conflict || draft.draftStatus !== "drafting" || readiness?.status !== "active"} onClick={() => { void publish(); }}>Publicar</Button></div>
     {readiness && <Alert tone={readiness.status === "active" ? "success" : "warning"}>{readiness.status === "active" ? "Configuração pronta para publicação." : `Pendente: ${readiness.missingRequirements.map(requirement).join(", ")}`}</Alert>}
     <section className="fhdod-profile-card mt-3"><h2 className="h5">Histórico de versões</h2>
       {versions.length === 0 ? <p>Nenhuma versão publicada.</p> : versions.map((version) => <div className="d-flex justify-content-between gap-2 border-bottom py-2" key={version.id}><span>Versão {version.versionNumber}{version.current ? " · vigente" : ""}<small className="d-block text-secondary">Publicada em {formatPublishedAt(version.publishedAt)}</small></span><Button type="button" variant="tertiary" aria-expanded={expandedVersionId === version.id} onClick={() => { if (expandedVersionId === version.id) { setExpandedVersionId(null); setSelectedVersion(null); return; } void run(async () => { setSelectedVersion(await formDraftService.version(sectorId, version.id)); setExpandedVersionId(version.id); }); }}>{expandedVersionId === version.id ? "Fechar" : "Visualizar"}</Button></div>)}
       {selectedVersion && expandedVersionId === selectedVersion.versionId && <div className="mt-3"><h3 className="h6">Versão {versions.find((version) => version.id === selectedVersion.versionId)?.versionNumber ?? selectedVersion.versionId}</h3><QuestionPreview items={selectedVersion.items} /><Button type="button" disabled={busy || dirty || conflict} onClick={() => { void restore(selectedVersion.versionId); }}>Restaurar para rascunho</Button></div>}
     </section>
+    <SectorQrDialog sector={qrOpen ? sector : null} onClose={() => setQrOpen(false)} />
     <BaseModal open={showLeaveConfirm} title="Alterações não salvas" onRequestClose={() => setShowLeaveConfirm(false)}>
       <p>Você possui alterações no formulário que ainda não foram salvas. Se sair agora, essas alterações serão perdidas.</p>
       <div className="d-flex flex-wrap justify-content-end gap-2"><Button type="button" variant="tertiary" onClick={() => setShowLeaveConfirm(false)}>Continuar editando</Button><Button type="button" variant="destructive" onClick={leaveWithoutSaving}>Sair sem salvar</Button></div>

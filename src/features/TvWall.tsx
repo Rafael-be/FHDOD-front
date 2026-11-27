@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Alert, LoadingState } from "../components/ui/Feedback";
 import { Button } from "../components/ui/Button";
 import { loadPublicDisplay, type Indicator } from "./tvDisplay";
-import { api } from "../services/http";
+import { ApiError, api } from "../services/http";
 import { sectorsService } from "./sectors";
 
 const titles = { completionRate: "Taxa de conclusão", nps: "Índice NPS", npsGroups: "Classificação do NPS" };
@@ -12,11 +12,11 @@ interface Settings {periodDays: number; refreshSeconds: number; indicators: Metr
 const configPath = "/api/tv-wall/config";
 
 function Tiles({ indicators, preview = false }: {indicators: Indicator[]; preview?: boolean}) {
-  return <div className="wall-tiles">{indicators.map(item => <article key={item.id}>
+  return <div className="wall-tiles">{indicators.map(item => <article className="wall-tile" key={item.id}>
     <h2>{titles[item.id]}</h2>
     {item.value === null ? <p>{preview ? "Pré-visualização" : "Indisponível"}</p> : item.id === "npsGroups" ?
-      <dl>{[["Bons", item.value.promoters], ["Neutros", item.value.passives], ["Ruins", item.value.detractors]].map(([label, value]) =>
-        <div key={label}><dt>{label}</dt><dd>{value}%</dd></div>)}</dl> :
+      <div className="wall-bars" role="img" aria-label="Distribuição das classificações NPS"><dl>{[["Promotores", item.value.promoters, "promoters"], ["Neutros", item.value.passives, "passives"], ["Detratores", item.value.detractors, "detractors"]].map(([label, value, kind]) =>
+        <div className={`wall-bar wall-bar--${kind}`} key={label}><dt>{label}</dt><dd><span style={{width: `${value}%`}} /><strong>{value}%</strong></dd></div>)}</dl></div> :
       <strong>{item.value}{item.id === "completionRate" && "%"}</strong>}
   </article>)}</div>;
 }
@@ -29,8 +29,9 @@ export function TvWall() {
     refetchInterval: query => (query.state.data?.refreshSeconds ?? 60) * 1000,
     refetchIntervalInBackground: true, retry: false, gcTime: 0,
   });
+  const rateLimited = wall.error instanceof ApiError && (wall.error.status === 429 || wall.error.code === "TV_WALL_RATE_LIMITED");
   return <main className="tv-wall">
-    <header><div><h1>Experiência do paciente</h1>{wall.isSuccess && <p>Últimos {wall.data.periodDays} dias completos</p>}</div>
+    <header><div className="wall-brand"><span className="wall-kicker">FHDOD · PAINEL INSTITUCIONAL</span><h1>Experiência do paciente</h1>{wall.isSuccess && <p>Últimos {wall.data.periodDays} dias completos · atualização automática</p>}</div>
       {document.fullscreenEnabled && <button onClick={async () => {
         try {
           if (document.fullscreenElement) await document.exitFullscreen();
@@ -40,7 +41,7 @@ export function TvWall() {
       }}>Alternar tela cheia</button>}</header>
     {fullscreenError && <p role="status">Tela cheia indisponível neste navegador.</p>}
     {wall.isPending && <LoadingState/>}
-    {wall.isError && <p role="alert">Falha ao atualizar os indicadores. Uma nova tentativa será feita automaticamente.</p>}
+    {wall.isError && <p role="alert">{rateLimited ? "Atualização temporariamente limitada. O painel tentará novamente automaticamente." : "Falha ao atualizar os indicadores. Uma nova tentativa será feita automaticamente."}</p>}
     {wall.isSuccess && (wall.data.indicators.length ? <Tiles indicators={wall.data.indicators}/> : <p>Nenhum indicador publicado.</p>)}
   </main>;
 }

@@ -8,6 +8,7 @@ import { AccountPage } from "../features/AccountPage";
 import { ManagersPage } from "../features/ManagersPage";
 import { SectorsPage } from "../features/SectorsPage";
 import { SectorQuestionsPage } from "../features/SectorQuestionsPage";
+import { FormsPage } from "../features/FormsPage";
 import { EditPage, PublicPage } from "../features/PagesPage";
 import { QuestionCreationPage } from "../features/QuestionCreationPage";
 import { PublicSubmissionPage } from "../features/PublicSubmissionPage";
@@ -56,7 +57,8 @@ function AuthenticatedApp() {
   if (path === "/relatorios") return shell(<ReportsPage canManage={user.role === "superuser"} />);
   if (path === "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/gestores") return user.role === "superuser" ? shell(<ManagersPage />) : shell(<ErrorState />);
-  if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} onQuestions={(sectorId) => navigate(`/setores/${sectorId}/perguntas`)} />);
+  if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} />);
+  if (path === "/formularios") return shell(<FormsPage />);
   const questionRoute = path.match(/^\/setores\/(\d+)\/perguntas$/);
   if (questionRoute) return shell(<SectorQuestionsPage sectorId={Number(questionRoute[1])} canManageStandards={user.role === "superuser"} />);
   if (path === "/perguntas-padrao/nova") return user.role === "superuser" ? shell(<QuestionCreationPage type="standard" onDone={() => navigate("/setores")} />) : shell(<ErrorState />);
@@ -76,7 +78,7 @@ function Router() {
   const { status, restore, sessionExpired, user } = useAuth(); const { path, navigate } = usePath();
   const submissionRoute = path.match(/^\/avaliacao\/(\d+)$/);
   const ticketRoute = path.match(/^\/manifestacao\/(\d+)$/);
-  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/relatorios", "/gestores", "/setores", "/paginas/lgpd", "/planilhas-turnos", "/auditoria", "/ouvidoria"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
+  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/relatorios", "/gestores", "/setores", "/formularios", "/paginas/lgpd", "/planilhas-turnos", "/auditoria", "/ouvidoria"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
   if (submissionRoute) return <PublicSubmissionPage sectorId={Number(submissionRoute[1])} />;
   if (ticketRoute) return <PublicOmbudsmanPage sectorId={Number(ticketRoute[1])} />;
   if (path === "/manifestacao") return <PublicOmbudsmanPage />;

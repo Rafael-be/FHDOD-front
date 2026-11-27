@@ -20,6 +20,9 @@ export function normalizeDraftItems(items: DraftItem[]): DraftItem[] {
   return [...items.filter((item) => !item.isNps), ...items.filter((item) => item.isNps)]
     .map((item, index) => ({ ...item, position: index + 1 }));
 }
+export function readinessFingerprint(revision: number, items: DraftItem[]): string {
+  return `${revision}:${JSON.stringify(normalizeDraftItems(items))}`;
+}
 const path = (sectorId: number) => `/api/sectors/${sectorId}`;
 export const formDraftService = {
   get: (sectorId: number) => api.request<FormDraft>(`${path(sectorId)}/form-draft`),
