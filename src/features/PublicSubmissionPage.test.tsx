@@ -35,6 +35,8 @@ describe("PublicSubmissionPage", () => {
     const start = vi.spyOn(submissionsService, "start").mockResolvedValue(started);
     await render();
     expect(container.textContent).toContain("Recomendaria este atendimento?");
+    expect(document.activeElement).toBe(container.querySelector("h1"));
+    expect(container.querySelector("h1")?.getAttribute("tabindex")).toBe("-1");
     expect(start).not.toHaveBeenCalled();
     expect(container.querySelector(".fhdod-question-progress")).toBeNull();
     await act(async () => { button("0").click(); });
@@ -42,6 +44,8 @@ describe("PublicSubmissionPage", () => {
     expect(start.mock.calls[0][1]).toBe(42);
     expect(start.mock.calls[0][4]).toEqual({ questionId: 1, questionVersionId: 2, status: "answered", score: 0 });
     expect(container.textContent).toContain("Como foi o atendimento?");
+    expect(document.activeElement).toBe(container.querySelector("h1"));
+    expect(container.querySelectorAll(".fhdod-score-options button")).toHaveLength(5);
     expect([...container.querySelectorAll(".fhdod-score-options button")].map((item) => item.textContent)).toEqual(["5", "4", "3", "2", "1"]);
     expect(container.querySelector("h1")?.getAttribute("tabindex")).toBe("-1");
   });

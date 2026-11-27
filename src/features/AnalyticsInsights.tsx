@@ -1,10 +1,10 @@
 import type { CSSProperties } from "react";
 import type { CriticalQuestionsReport, QuestionDistributionReport, SectorHeatmapMetric, AnalyticsDashboard } from "./analytics";
-import { shiftTotals } from "./analyticsInsights";
+import { shiftTotals } from "./analyticsMetrics";
+import { scoreColor } from "./scorePalette";
 
 const number = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 1});
 const count = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 0});
-const scoreColors = ["var(--color-primary-deep)", "var(--color-warning)", "var(--color-text-muted)", "var(--color-success)", "var(--color-primary)"];
 const grade = (value: number | null, low: number, high: number) => value === null ? "none" : value < low ? "critical" : value < high ? "middle" : "positive";
 
 function HeatCell({ value, unit, responses, low, high, label }: { value: number | null; unit: string; responses: number; low: number; high: number; label: string }) {
@@ -32,9 +32,9 @@ export function QuestionDistribution({ report }: { report: QuestionDistributionR
     <p className="small text-secondary">Formulário publicado nº {report.formVersionId}. Somente perguntas de satisfação.</p>
     {report.questions.length === 0 && <p>O formulário vigente não contém perguntas de satisfação.</p>}
     {[...report.questions].sort((a,b) => a.position-b.position).map(item => <article className="fhdod-question-distribution" key={`${item.questionId}-${item.questionVersionId}`}><div className="fhdod-distribution-heading"><strong>{item.text}</strong><span>{item.mean === null ? "Sem média" : `${number.format(item.mean)} / 5`} · {count.format(item.responses)} respostas</span></div>
-      {item.responses > 0 ? <div className="fhdod-stacked-bar" role="img" aria-label={`Distribuição de ${item.text}: ${item.responses} respostas`}>{item.distribution.map(bucket => bucket.responses > 0 && <span key={bucket.score} style={{width:`${bucket.responses / item.responses * 100}%`,background:scoreColors[bucket.score-1]}} title={`Nota ${bucket.score}: ${count.format(bucket.responses)} respostas`} aria-label={`Nota ${bucket.score}: ${count.format(bucket.responses)} respostas`} />)}</div> : <p className="small text-secondary mb-0">Sem respostas no período.</p>}
+      {item.responses > 0 ? <><div className="fhdod-stacked-bar" role="img" aria-label={`Distribuição de ${item.text}: ${item.responses} respostas`}>{item.distribution.map(bucket => bucket.responses > 0 && <span key={bucket.score} style={{width:`${bucket.responses / item.responses * 100}%`,background:scoreColor(bucket.score)}} title={`Nota ${bucket.score}: ${count.format(bucket.responses)} respostas`} aria-label={`Nota ${bucket.score}: ${count.format(bucket.responses)} respostas`} />)}</div><p className="fhdod-distribution-counts">{item.distribution.filter(bucket => bucket.responses > 0).map(bucket => <span key={bucket.score}>Nota {bucket.score}: {count.format(bucket.responses)}</span>)}</p></> : <p className="small text-secondary mb-0">Sem respostas no período.</p>}
     </article>)}
-    <div className="fhdod-score-legend" aria-label="Legenda das notas">{[1,2,3,4,5].map(score => <span key={score} style={{"--legend-color":scoreColors[score-1]} as CSSProperties}>Nota {score}</span>)}</div>
+    <div className="fhdod-score-legend" aria-label="Legenda das notas">{[1,2,3,4,5].map(score => <span key={score} style={{"--legend-color":scoreColor(score)} as CSSProperties}>Nota {score}</span>)}</div>
   </section>;
 }
 

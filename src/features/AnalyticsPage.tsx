@@ -4,10 +4,11 @@ import { Button } from "../components/ui/Button";
 import { useQuery } from "@tanstack/react-query";
 import { GlobalQuestions } from "./GlobalQuestions";
 import { CriticalRanking, QuestionDistribution, SatisfactionHeatmap, ShiftOverview } from "./AnalyticsInsights";
-import { npsMean, satisfaction } from "./analyticsInsights";
+import { npsMean, satisfaction } from "./analyticsMetrics";
 import { sectorsService, type Sector } from "./sectors";
 import { analyticsService, completionIndicators, type AnalyticsDashboard, type AnalyticsFilter } from "./analytics";
-import { dashboardForShift, questionsForShift, shiftNames, type ShiftName } from "./analyticsAggregation";
+import { shiftNames, type ShiftName } from "./analyticsAggregation";
+import { scoreColor } from "./scorePalette";
 
 const decimal = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 1});
 const integer = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 0});
@@ -22,15 +23,15 @@ function Bars({ title, rows }: { title: string; rows: { label: string; value: nu
   const max = Math.max(1, ...rows.map((row) => row.value));
   return <section className="fhdod-profile-card fhdod-chart-panel"><h2>{title}</h2>{rows.length === 0 ? <p className="text-secondary">Sem dados no período.</p> : rows.map((row) => <div className="fhdod-chart-row" key={row.label}><div><span>{row.label}</span><strong>{format(row.value, 0)}</strong></div><div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)}`}><div className="progress-bar" style={{ width: `${(row.value / max) * 100}%` }} /></div></div>)}</section>;
 }
-function Donut({ rows }: { rows: { label: string; value: number; score: number }[] }) {
+export function Donut({ rows }: { rows: { label: string; value: number; score: number }[] }) {
   const [activeScore, setActiveScore] = useState<number | null>(null);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
-  const colors = ["var(--color-primary-deep)", "var(--color-warning)", "var(--color-text-muted)", "var(--color-success)", "var(--color-primary)"];
   let cursor = 0;
-  const stops = rows.filter(row => row.value > 0).map(row => { const start = cursor; cursor += row.value / total * 100; return `${colors[row.score - 1]} ${start}% ${cursor}%`; });
+  const positiveRows = rows.filter(row => row.value > 0);
+  const stops = positiveRows.flatMap(row => { const start = cursor; cursor += row.value / total * 100; const gap = positiveRows.length > 1 ? Math.min(0.25, (cursor - start) / 4) : 0; return [`${scoreColor(row.score)} ${start}% ${cursor - gap}%`, `var(--color-surface) ${cursor - gap}% ${cursor}%`]; });
   return <section className="fhdod-profile-card fhdod-chart-panel fhdod-donut-panel"><h2>Distribuição de notas gerais</h2>{!total && <p className="text-secondary">Sem dados no período.</p>}
     <div className="fhdod-donut-layout"><div className="fhdod-donut" role="img" aria-label={`Distribuição de notas: ${format(total, 0)} respostas`} style={{ background: total ? `conic-gradient(${stops.join(", ")})` : "var(--color-surface-muted)" }} />
-      <ul className="fhdod-donut-legend">{rows.map(row => { const percent = total ? row.value / total * 100 : 0; return <li key={row.label} role="button" tabIndex={0} aria-pressed={activeScore === row.score} data-active={activeScore === row.score} onClick={() => setActiveScore(current => current === row.score ? null : row.score)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setActiveScore(current => current === row.score ? null : row.score); } }} style={{ "--legend-color": colors[row.score - 1] } as CSSProperties} aria-label={`${row.label}: ${format(row.value, 0)} respostas, ${format(percent)}%`}><span>{row.label}</span><strong>{format(percent)}%</strong><span className="fhdod-donut-detail" role="tooltip">{format(row.value, 0)} respostas · {format(percent)}%</span></li>; })}</ul>
+      <ul className="fhdod-donut-legend">{rows.map(row => { const percent = total ? row.value / total * 100 : 0; return <li key={row.label} role="button" tabIndex={0} aria-pressed={activeScore === row.score} data-active={activeScore === row.score} onClick={() => setActiveScore(current => current === row.score ? null : row.score)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setActiveScore(current => current === row.score ? null : row.score); } }} style={{ "--legend-color": scoreColor(row.score) } as CSSProperties} aria-label={`${row.label}: ${format(row.value, 0)} respostas, ${format(percent)}%`}><span>{row.label}</span><strong>{format(percent)}%</strong><span className="fhdod-donut-detail" role="tooltip">{format(row.value, 0)} respostas · {format(percent)}%</span></li>; })}</ul>
     </div></section>;
 }
 function Trend({ data }: { data: AnalyticsDashboard["daily"] }) {
@@ -56,14 +57,14 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
   const [filter, setFilter] = useState(() => dateFilter(from, to));
   const [error, setError] = useState("");
   const scope = [userId, canManage];
+  const activeFilter: AnalyticsFilter = appliedShift ? { ...filter, shiftName: appliedShift } : filter;
   const sectors = useQuery({ queryKey: ["sectors", ...scope], queryFn: () => sectorsService.list(), retry: false, staleTime: 60000 });
-  const base = useQuery({ queryKey: ["dashboard", ...scope, filter], queryFn: ({signal}) => analyticsService.dashboard(filter, signal), retry: false, staleTime: 60000 });
-  const dashboard = useQuery({ queryKey: ["dashboard-view", ...scope, filter, appliedShift], enabled: !!base.data, queryFn: ({signal}) => appliedShift ? dashboardForShift(filter, base.data!, appliedShift, signal) : base.data!, retry: false, staleTime: 60000 });
-  const questions = useQuery({ queryKey: ["global-questions", ...scope, filter, appliedShift], enabled: !!base.data, queryFn: ({signal}) => appliedShift ? questionsForShift(filter, base.data!, appliedShift, signal) : analyticsService.questions(filter, signal), retry: false, staleTime: 60000 });
-  const singleSector = filter.sectorId ?? null;
-  const heatmap = useQuery({ queryKey: ["analytics-heatmap", ...scope, filter], queryFn: ({signal}) => analyticsService.heatmap(filter,signal), enabled: !appliedShift, retry: false, staleTime: 60000 });
-  const distribution = useQuery({ queryKey: ["analytics-question-distribution", ...scope, filter], queryFn: ({signal}) => analyticsService.questionDistribution(filter,signal), enabled: singleSector !== null && !appliedShift, retry: false, staleTime: 60000 });
-  const critical = useQuery({ queryKey: ["analytics-critical", ...scope, filter, criticalLimit], queryFn: ({signal}) => analyticsService.criticalQuestions(filter,criticalLimit,signal), enabled: !appliedShift, retry: false, staleTime: 60000 });
+  const dashboard = useQuery({ queryKey: ["dashboard", ...scope, activeFilter], queryFn: ({signal}) => analyticsService.dashboard(activeFilter, signal), retry: false, staleTime: 60000 });
+  const questions = useQuery({ queryKey: ["global-questions", ...scope, activeFilter], queryFn: ({signal}) => analyticsService.questions(activeFilter, signal), retry: false, staleTime: 60000 });
+  const singleSector = activeFilter.sectorId ?? null;
+  const heatmap = useQuery({ queryKey: ["analytics-heatmap", ...scope, activeFilter], queryFn: ({signal}) => analyticsService.heatmap(activeFilter,signal), retry: false, staleTime: 60000 });
+  const distribution = useQuery({ queryKey: ["analytics-question-distribution", ...scope, activeFilter], queryFn: ({signal}) => analyticsService.questionDistribution(activeFilter,signal), enabled: singleSector !== null, retry: false, staleTime: 60000 });
+  const critical = useQuery({ queryKey: ["analytics-critical", ...scope, activeFilter, criticalLimit], queryFn: ({signal}) => analyticsService.criticalQuestions(activeFilter,criticalLimit,signal), retry: false, staleTime: 60000 });
   const apply = (event: FormEvent) => {
     event.preventDefault();
     const period = dateFilter(from, to);
@@ -100,7 +101,6 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
     </form>
     {error && <Alert tone="danger">{error}</Alert>}
     {sectors.isError && <Alert tone="danger">{sectors.error.message}</Alert>}
-    {base.isError && <Alert tone="danger">{base.error.message} <button onClick={() => void base.refetch()}>Tentar novamente</button></Alert>}
     {dashboard.isError && <Alert tone="danger">{dashboard.error.message} <button onClick={() => void dashboard.refetch()}>Tentar novamente</button></Alert>}
     {dashboard.isPending && <LoadingState />}
     {data && <>
@@ -119,9 +119,9 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
         {selected.length !== 1 && <Bars title="Pesquisas completas por setor" rows={data.sectors.map(row => ({ label: name(row.sector_id), value: row.complete }))} />}
       </div>
       <h2 className="fhdod-section-title">Qualidade do atendimento</h2>
-      {appliedShift ? <Alert tone="warning">Mapa de satisfação e perguntas por turno indisponíveis: o backend aceita somente uma faixa histórica por consulta e não agrega estas métricas por nome de turno.</Alert> : <>{heatmap.isPending ? <LoadingState /> : heatmap.isError ? <Alert tone="danger">Não foi possível carregar o mapa de satisfação: {heatmap.error.message}</Alert> : <SatisfactionHeatmap rows={heatmap.data} names={names} />}
+      {heatmap.isPending ? <LoadingState /> : heatmap.isError ? <Alert tone="danger">Não foi possível carregar o mapa de satisfação: {heatmap.error.message}</Alert> : <SatisfactionHeatmap rows={heatmap.data} names={names} />}
       {singleSector !== null && (distribution.isPending ? <LoadingState /> : distribution.isError ? <Alert tone="danger">Não foi possível carregar a distribuição das perguntas: {distribution.error.message}</Alert> : <QuestionDistribution report={distribution.data} />)}
-      {critical.isPending ? <LoadingState /> : critical.isError ? <Alert tone="danger">Não foi possível carregar as perguntas críticas: {critical.error.message}</Alert> : <CriticalRanking report={critical.data} names={names} limit={criticalLimit} onLimit={setCriticalLimit} />}</>}
+      {critical.isPending ? <LoadingState /> : critical.isError ? <Alert tone="danger">Não foi possível carregar as perguntas críticas: {critical.error.message}</Alert> : <CriticalRanking report={critical.data} names={names} limit={criticalLimit} onLimit={setCriticalLimit} />}
       <div className="fhdod-chart-grid fhdod-chart-grid--equal">
         <Donut rows={noteBuckets.map(row => ({ label: `Nota ${row.score}`, value: row.responses, score: row.score }))} />
         <section className="fhdod-profile-card fhdod-chart-panel fhdod-nps-panel"><h2>Classificação do NPS</h2>
