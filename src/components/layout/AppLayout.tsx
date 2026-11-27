@@ -11,7 +11,7 @@ interface AppLayoutProps {
 }
 
 const navigation = [
-  { label: "Conta", items: [{ path: "/", label: "Indicadores", icon: "dashboard" }, { path: "/conta", label: "Minha conta", icon: "user" }] },
+  { label: "Conta", items: [{ path: "/", label: "Indicadores", icon: "dashboard" }, { path: "/relatorios", label: "Relatórios", icon: "audit" }, { path: "/conta", label: "Minha conta", icon: "user" }] },
   { label: "Setores", items: [{ path: "/setores", label: "Setores", icon: "sectors" }] },
   { label: "Avaliações", managed: true, items: [{ path: "/perguntas-padrao/nova", label: "Pergunta padrão", icon: "question" }, { path: "/nps/novo", label: "Novo NPS", icon: "nps" }] },
   { label: "Administração", managed: true, items: [

@@ -15,6 +15,7 @@ import { ShiftSheetsPage } from "../features/ShiftSheetsPage";
 import { AuditPage } from "../features/AuditPage";
 import { TvWall, TvWallConfig } from "../features/TvWall";
 import { AnalyticsPage } from "../features/AnalyticsPage";
+import { ReportsPage } from "../features/ReportsPage";
 import { OmbudsmanPage, PublicOmbudsmanPage } from "../features/OmbudsmanPage";
 import { FhdodLogo } from "../components/branding/FhdodLogo";
 
@@ -52,6 +53,7 @@ function AuthenticatedApp() {
   if (!user) return <main className="fhdod-auth-page"><ErrorState /></main>;
   if (user.mustChangePassword && path !== "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/conta") return shell(<AccountPage user={user} onCredentialChange={() => navigate("/entrar")} />);
+  if (path === "/relatorios") return shell(<ReportsPage canManage={user.role === "superuser"} />);
   if (path === "/trocar-senha-temporaria") return <main className="fhdod-auth-page"><PasswordForm temporary onSuccess={() => navigate("/entrar")} /></main>;
   if (path === "/gestores") return user.role === "superuser" ? shell(<ManagersPage />) : shell(<ErrorState />);
   if (path === "/setores") return shell(<SectorsPage canManage={user.role === "superuser"} onQuestions={(sectorId) => navigate(`/setores/${sectorId}/perguntas`)} />);
@@ -74,7 +76,7 @@ function Router() {
   const { status, restore, sessionExpired, user } = useAuth(); const { path, navigate } = usePath();
   const submissionRoute = path.match(/^\/avaliacao\/(\d+)$/);
   const ticketRoute = path.match(/^\/manifestacao\/(\d+)$/);
-  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/gestores", "/setores", "/paginas/lgpd", "/planilhas-turnos", "/auditoria", "/ouvidoria"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
+  useEffect(() => { if (status === "anonymous" && ["/trocar-senha-temporaria", "/conta", "/relatorios", "/gestores", "/setores", "/paginas/lgpd", "/planilhas-turnos", "/auditoria", "/ouvidoria"].includes(path)) navigate("/entrar"); }, [navigate, path, status]);
   if (submissionRoute) return <PublicSubmissionPage sectorId={Number(submissionRoute[1])} />;
   if (ticketRoute) return <PublicOmbudsmanPage sectorId={Number(ticketRoute[1])} />;
   if (path === "/manifestacao") return <PublicOmbudsmanPage />;
