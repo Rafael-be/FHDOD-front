@@ -57,7 +57,7 @@ it("restaura select nativo de setor, gráfico de um dia e séries 100/70", async
     expect(container.textContent).toContain("Noite20");
     await change(sector,"2"); await apply(container);
     expect(dashboard.mock.lastCall?.[0]).toMatchObject({sectorId:2});
-    expect(container.textContent).toContain("Distribuição por pergunta do formulário vigente");
+    await vi.waitFor(() => expect(container.textContent).toContain("Distribuição por pergunta do formulário vigente"));
     await change(sector,""); await apply(container);
     expect(sector.value).toBe("");
     expect(container.textContent).not.toContain("Distribuição por pergunta do formulário vigente");
