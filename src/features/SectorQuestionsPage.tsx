@@ -4,7 +4,7 @@ import { BaseModal } from "../components/ui/BaseModal";
 import { Alert, EmptyState, ErrorState, LoadingState } from "../components/ui/Feedback";
 import { ApiError } from "../services/http";
 import { sectorsService, type Sector } from "./sectors";
-import { formDraftService, normalizeDraftItems, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
+import { formDraftService, normalizeDraftItems, readinessFingerprint, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
 import { questionsService, type CatalogQuestion } from "./questions";
 import { QuestionPreview } from "./QuestionPreview";
 import { SectorQrDialog } from "./SectorQrDialog";
@@ -35,6 +35,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   const [dirty, setDirty] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [readinessKey, setReadinessKey] = useState("");
   const allowNavigation = useRef(false);
 
   const load = useCallback(async () => {
@@ -43,7 +44,8 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
       formDraftService.history(sectorId), questionsService.catalog(sectorId),
       sectorsService.list(),
     ]);
-    setDraft(state); setSector(sectors.find((item) => item.id === sectorId) ?? null); setItems(normalizeDraftItems(state.items)); setReadiness(ready); setVersions(history);
+    const normalizedItems = normalizeDraftItems(state.items);
+    setDraft(state); setSector(sectors.find((item) => item.id === sectorId) ?? null); setItems(normalizedItems); setReadiness(ready); setReadinessKey(readinessFingerprint(state.revision, normalizedItems)); setVersions(history);
     setCatalog(available.items.filter((item) => !item.deletedAt)); setCatalogPage(1); setCatalogTotal(available.total);
     setDirty(false); setConflict(false);
   }, [sectorId]);
@@ -58,7 +60,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   }, [dirty]);
   const leaveWithoutSaving = () => { allowNavigation.current = true; setShowLeaveConfirm(false); window.dispatchEvent(new Event("fhdod:beforeNavigate", { cancelable: true })); };
 
-  const change = (next: DraftItem[]) => { setItems(normalizeDraftItems(next)); setDirty(true); setMessage(undefined); };
+  const change = (next: DraftItem[]) => { setItems(normalizeDraftItems(next)); setReadiness(null); setReadinessKey(""); setDirty(true); setMessage(undefined); };
   const move = (index: number, delta: number) => {
     const copy = [...items]; const target = index + delta;
     if (target < 0 || target >= copy.length || copy[index].isNps || copy[target].isNps) return;
@@ -140,7 +142,7 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
     </section>
     <div className="fhdod-editor-actions d-flex flex-wrap gap-2 mb-3"><Button type="button" variant="secondary" loading={busy} disabled={!dirty || conflict} onClick={() => { void save(); }}>Salvar rascunho</Button>
       <Button type="button" variant="tertiary" disabled={busy || (draft.draftStatus !== "drafting" && !dirty)} onClick={() => { void discard(); }}>Descartar</Button>
-      <Button type="button" variant="secondary" disabled={busy} onClick={() => { void run(async () => { setReadiness(await formDraftService.readiness(sectorId)); }); }}>Verificar prontidão</Button>
+      <Button type="button" variant="secondary" disabled={busy || readinessKey === readinessFingerprint(draft.revision, items)} onClick={() => { void run(async () => { setReadiness(await formDraftService.readiness(sectorId)); setReadinessKey(readinessFingerprint(draft.revision, items)); }); }}>Verificar prontidão</Button>
       <Button type="button" disabled={busy || dirty || conflict || draft.draftStatus !== "drafting" || readiness?.status !== "active"} onClick={() => { void publish(); }}>Publicar</Button></div>
     {readiness && <Alert tone={readiness.status === "active" ? "success" : "warning"}>{readiness.status === "active" ? "Configuração pronta para publicação." : `Pendente: ${readiness.missingRequirements.map(requirement).join(", ")}`}</Alert>}
     <section className="fhdod-profile-card mt-3"><h2 className="h5">Histórico de versões</h2>

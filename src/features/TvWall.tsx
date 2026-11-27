@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Alert, LoadingState } from "../components/ui/Feedback";
 import { Button } from "../components/ui/Button";
 import { loadPublicDisplay, type Indicator } from "./tvDisplay";
-import { api } from "../services/http";
+import { ApiError, api } from "../services/http";
 import { sectorsService } from "./sectors";
 
 const titles = { completionRate: "Taxa de conclusão", nps: "Índice NPS", npsGroups: "Classificação do NPS" };
@@ -29,6 +29,7 @@ export function TvWall() {
     refetchInterval: query => (query.state.data?.refreshSeconds ?? 60) * 1000,
     refetchIntervalInBackground: true, retry: false, gcTime: 0,
   });
+  const rateLimited = wall.error instanceof ApiError && (wall.error.status === 429 || wall.error.code === "TV_WALL_RATE_LIMITED");
   return <main className="tv-wall">
     <header><div className="wall-brand"><span className="wall-kicker">FHDOD · PAINEL INSTITUCIONAL</span><h1>Experiência do paciente</h1>{wall.isSuccess && <p>Últimos {wall.data.periodDays} dias completos · atualização automática</p>}</div>
       {document.fullscreenEnabled && <button onClick={async () => {
@@ -40,7 +41,7 @@ export function TvWall() {
       }}>Alternar tela cheia</button>}</header>
     {fullscreenError && <p role="status">Tela cheia indisponível neste navegador.</p>}
     {wall.isPending && <LoadingState/>}
-    {wall.isError && <p role="alert">Falha ao atualizar os indicadores. Uma nova tentativa será feita automaticamente.</p>}
+    {wall.isError && <p role="alert">{rateLimited ? "Atualização temporariamente limitada. O painel tentará novamente automaticamente." : "Falha ao atualizar os indicadores. Uma nova tentativa será feita automaticamente."}</p>}
     {wall.isSuccess && (wall.data.indicators.length ? <Tiles indicators={wall.data.indicators}/> : <p>Nenhum indicador publicado.</p>)}
   </main>;
 }
