@@ -39,4 +39,24 @@ describe("SectorsPage", () => {
     expect(container.textContent).toContain("Ativo");
     await act(async () => { root.unmount(); });
   });
+
+  it("abre e copia o endereço público configurado do setor", async () => {
+    vi.stubEnv("VITE_PUBLIC_APP_URL", "https://hospital.org.br");
+    vi.spyOn(sectorsService, "list").mockResolvedValue([{ id: 7, code: "PA", name: "Pronto Atendimento", deletedAt: null }]);
+    vi.spyOn(sectorsService, "status").mockResolvedValue({ sectorId: 7, status: "active", missingRequirements: [] });
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const container = document.createElement("div"); document.body.append(container);
+    const root = createRoot(container);
+    await act(async () => { root.render(<SectorsPage canManage={false} onQuestions={() => undefined} />); });
+    const button = (label: string) => [...container.querySelectorAll("button")].find((item) => item.textContent?.includes(label))!;
+    await act(async () => { button("Abrir link").click(); });
+    expect(open).toHaveBeenCalledWith("https://hospital.org.br/avaliacao/7", "_blank", "noopener,noreferrer");
+    await act(async () => { button("Copiar link").click(); });
+    expect(writeText).toHaveBeenCalledWith("https://hospital.org.br/avaliacao/7");
+    expect(container.textContent).toContain("Link copiado.");
+    await act(async () => { root.unmount(); });
+    vi.unstubAllEnvs();
+  });
 });

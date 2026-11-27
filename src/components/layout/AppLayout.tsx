@@ -11,10 +11,11 @@ interface AppLayoutProps {
 }
 
 const navigation = [
-  { label: "Conta", items: [{ path: "/", label: "Indicadores", icon: "dashboard" }, { path: "/conta", label: "Minha conta", icon: "user" }] },
+  { label: "Conta", items: [{ path: "/", label: "Indicadores", icon: "dashboard" }, { path: "/relatorios", label: "Relatórios", icon: "audit" }, { path: "/conta", label: "Minha conta", icon: "user" }] },
   { label: "Setores", items: [{ path: "/setores", label: "Setores", icon: "sectors" }] },
   { label: "Avaliações", managed: true, items: [{ path: "/perguntas-padrao/nova", label: "Pergunta padrão", icon: "question" }, { path: "/nps/novo", label: "Novo NPS", icon: "nps" }] },
   { label: "Administração", managed: true, items: [
+    { path: "/tv-wall/config", label: "Configuração da TV", icon: "dashboard" },
     { path: "/gestores", label: "Gestores", icon: "users" },
     { path: "/ouvidoria", label: "Ouvidoria", icon: "message" },
     { path: "/planilhas-turnos", label: "Planilhas de turnos", icon: "calendar" },

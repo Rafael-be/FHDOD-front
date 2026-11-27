@@ -124,7 +124,7 @@ export class HttpClient {
         method,
         body,
         headers,
-        credentials: "include",
+        credentials: options.credentials ?? "include",
       });
       const payload = await readPayload(response) as ApiEnvelope<T> | ErrorEnvelope;
 
@@ -148,6 +148,25 @@ export class HttpClient {
     const operation = execute(true).finally(() => this.inFlight.delete(dedupeKey));
     this.inFlight.set(dedupeKey, operation);
     return operation;
+  }
+
+  async download(path: string, body: unknown): Promise<{ blob: Blob; disposition: string | null }> {
+    const execute = async (canRefresh: boolean): Promise<{ blob: Blob; disposition: string | null }> => {
+      const response = await fetch(endpoint(this.baseUrl, path), {
+        method: "POST", credentials: "include",
+        headers: { Accept: "application/pdf, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json", "Content-Type": "application/json", "x-csrf-token": await this.csrf() },
+        body: JSON.stringify(body),
+      });
+      if (response.status === 401 && canRefresh) { await this.refresh(); return execute(false); }
+      if (!response.ok) {
+        const payload = await readPayload(response);
+        const error = responseError(payload);
+        if (response.status === 401) this.onSessionExpired?.();
+        throw new ApiError(error?.message ?? "Não foi possível baixar o relatório.", response.status, error?.code, error?.details);
+      }
+      return { blob: await response.blob(), disposition: response.headers.get("Content-Disposition") };
+    };
+    return execute(true);
   }
 }
 

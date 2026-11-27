@@ -6,6 +6,7 @@ import { ApiError } from "../services/http";
 import { sectorsService, type Sector } from "./sectors";
 import { formatPhone, MAX_PUBLIC_MESSAGE_LENGTH, ombudsmanService, phonePayload, type Ticket, type TicketPage, type TicketStatus, type TicketType } from "./ombudsman";
 import { pagesService, type ContentPage } from "./pages";
+import { submissionsService } from "./submissions";
 
 const types: Record<TicketType, string> = { complaint: "Reclamação", compliment: "Elogio", suggestion_other: "Sugestão ou outro" };
 const statuses: Record<TicketStatus, string> = { open: "Aberta", read: "Lida", contact_attempt: "Tentativa de contato", contact_failed: "Contato sem sucesso", resolved: "Resolvida" };
@@ -15,15 +16,18 @@ const nextStatuses: Record<TicketStatus, TicketStatus[]> = {
 };
 const messageOf = (cause: unknown) => cause instanceof ApiError ? cause.message : "Não foi possível concluir a solicitação.";
 
-export function PublicOmbudsmanPage({ sectorId: routeSectorId, modal = false, onClose }: { sectorId?: number; modal?: boolean; onClose?: () => void }) {
+export function PublicOmbudsmanPage({ sectorId: routeSectorId, sectorName: suppliedSectorName, modal = false, initialType = "compliment", onClose }: { sectorId?: number; sectorName?: string; modal?: boolean; initialType?: TicketType; onClose?: () => void }) {
   const [sectorId, setSectorId] = useState(routeSectorId ? String(routeSectorId) : "");
-  const [ticketType, setTicketType] = useState<TicketType>("complaint");
+  const [sectorName, setSectorName] = useState(suppliedSectorName?.trim() ?? "");
+  const [ticketType, setTicketType] = useState<TicketType>(initialType);
   const [body, setBody] = useState(""); const [phone, setPhone] = useState(""); const [accepted, setAccepted] = useState(false);
   const [policy, setPolicy] = useState<ContentPage | null>(null);
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string>(); const [receipt, setReceipt] = useState(false);
   useEffect(() => { pagesService.get("lgpd").then(setPolicy).catch(() => setError("A política de privacidade não está disponível para leitura.")); }, []);
+  useEffect(() => { if (!routeSectorId || suppliedSectorName?.trim()) return; let active = true; submissionsService.currentForm(routeSectorId).then(({form}) => { if (active) setSectorName(form.sectorName?.trim() ?? ""); }).catch(() => undefined); return () => { active = false; }; }, [routeSectorId, suppliedSectorName]);
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (!accepted) { setError("Leia e aceite a Política de Privacidade."); return; }
+    if (!body.trim()) { setError("Escreva uma mensagem antes de enviar."); return; }
     if (body.length > MAX_PUBLIC_MESSAGE_LENGTH) { setError("A mensagem excede o limite permitido."); return; }
     setBusy(true); setError(undefined);
     try {
@@ -31,18 +35,19 @@ export function PublicOmbudsmanPage({ sectorId: routeSectorId, modal = false, on
       setReceipt(true); setBody(""); setPhone(""); setAccepted(false);
     } catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
   };
+  const overLimit = body.length > MAX_PUBLIC_MESSAGE_LENGTH;
   const form = <form onSubmit={(event) => { void submit(event); }}>
     {receipt && <Alert tone="success">Manifestação registrada com sucesso.</Alert>}
     {error && <Alert tone="danger">{error}</Alert>}
-    <label className="form-label" htmlFor="ticket-sector">Código do setor</label><input id="ticket-sector" className="form-control mb-3" type="number" min="1" value={sectorId} onChange={(event) => setSectorId(event.target.value)} readOnly={Boolean(routeSectorId)} required />
+    {routeSectorId ? <p>{sectorName ? `Esta manifestação será vinculada ao setor ${sectorName}.` : "Esta manifestação será vinculada ao setor da avaliação."}</p> : <> <label className="form-label" htmlFor="ticket-sector">Código do setor</label><input id="ticket-sector" className="form-control mb-3" type="number" min="1" value={sectorId} onChange={(event) => setSectorId(event.target.value)} readOnly={Boolean(routeSectorId)} required /></>}
     <label className="form-label" htmlFor="ticket-type">Tipo</label><select id="ticket-type" className="form-select mb-3" value={ticketType} onChange={(event) => setTicketType(event.target.value as TicketType)}>{Object.entries(types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-    <div className="d-flex justify-content-between align-items-baseline gap-2"><label className="form-label mb-2" htmlFor="ticket-body">Mensagem</label><span className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-count fhdod-character-count--limit" : "fhdod-character-count"} aria-live="polite">{body.length}/{MAX_PUBLIC_MESSAGE_LENGTH}</span></div>
-    <textarea id="ticket-body" className="form-control mb-1" maxLength={MAX_PUBLIC_MESSAGE_LENGTH} rows={5} value={body} onChange={(event) => setBody(event.target.value)} aria-describedby="ticket-body-limit" required />
-    <div id="ticket-body-limit" className={body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "fhdod-character-warning" : "fhdod-character-hint"} aria-live="polite">{body.length >= MAX_PUBLIC_MESSAGE_LENGTH ? "Limite máximo de caracteres atingido." : ""}</div>
+    <div className="d-flex justify-content-between align-items-baseline gap-2"><label className="form-label mb-2" htmlFor="ticket-body">Mensagem</label><span className={overLimit ? "fhdod-character-count fhdod-character-count--limit" : "fhdod-character-count"} aria-live="polite">{body.length}/{MAX_PUBLIC_MESSAGE_LENGTH}</span></div>
+    <textarea id="ticket-body" className={`form-control mb-1${overLimit ? " fhdod-message-over-limit" : ""}`} aria-invalid={overLimit} rows={5} value={body} onChange={(event) => setBody(event.target.value)} aria-describedby="ticket-body-limit" required />
+    <div id="ticket-body-limit" className={overLimit ? "fhdod-character-warning" : "fhdod-character-hint"} aria-live="polite">{overLimit ? "A mensagem excede o limite permitido." : ""}</div>
     <label className="form-label" htmlFor="ticket-phone">Telefone com DDD (opcional)</label><input id="ticket-phone" className="form-control mb-3" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} placeholder="(XX) XXXXX-XXXX" />
-    <div className="mb-3"><p className="form-label mb-2">Política de Privacidade</p><p className="small text-secondary mb-2">Leia a <a href="/lgpd">Política de Privacidade</a> antes de enviar sua manifestação.</p>{!policy && <p className="small text-secondary mb-0">Carregando política...</p>}</div>
-    <label className="d-block mb-3"><input type="checkbox" checked={accepted} disabled={!policy || busy} onChange={(event) => setAccepted(event.target.checked)} required /> <span>Li e aceito a <a href="/lgpd" onClick={(event) => event.stopPropagation()}>Política de Privacidade</a>.</span></label>
-    <Button type="submit" loading={busy} disabled={!policy}>Enviar manifestação</Button>
+
+    <label className="d-block mb-3"><input type="checkbox" checked={accepted} disabled={!policy || busy} onChange={(event) => setAccepted(event.target.checked)} required /> <span>Li e aceito a <a href="/lgpd" target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Política de Privacidade</a>.</span></label>
+    <Button type="submit" className="fhdod-ombudsman-submit" loading={busy} disabled={!policy || !accepted || !body.trim() || overLimit || !Number.isInteger(Number(sectorId)) || Number(sectorId) <= 0}>Enviar manifestação</Button>
   </form>;
   if (modal) return <BaseModal open title="Ouvidoria" onRequestClose={onClose} busy={busy}>{form}</BaseModal>;
   return <main className="fhdod-auth-page"><section className="fhdod-profile-card mx-auto"><p className="eyebrow">FHDOD</p><h1>Ouvidoria</h1><p>Envie uma manifestação sobre sua experiência. O telefone é opcional e permite contato posterior.</p>{form}</section></main>;
@@ -53,19 +58,29 @@ export function OmbudsmanPage() {
   const [sectorId, setSectorId] = useState(""); const [type, setType] = useState(""); const [status, setStatus] = useState("");
   const [pageNumber, setPageNumber] = useState(1); const [selected, setSelected] = useState<Ticket | null>(null);
   const [error, setError] = useState<string>(); const [busy, setBusy] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const handleError = (cause: unknown) => {
+    if (cause instanceof ApiError && cause.status === 403 && cause.code !== "CSRF_INVALID") {
+      setPage(null);
+      setSelected(null);
+      setForbidden(true);
+    }
+    setError(messageOf(cause));
+  };
   const load = async (nextPage = pageNumber) => {
     setBusy(true); setError(undefined);
     try { setPage(await ombudsmanService.list({ page: nextPage, pageSize: 20, sectorId: sectorId ? Number(sectorId) : undefined, ticketType: type ? type as TicketType : undefined, status: status ? status as TicketStatus : undefined })); setPageNumber(nextPage); }
-    catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
+    catch (cause) { handleError(cause); } finally { setBusy(false); }
   };
   useEffect(() => { void load(1); sectorsService.list().then(setSectors).catch(() => undefined); }, []);
-  const detail = async (id: number) => { try { setSelected(await ombudsmanService.get(id)); } catch (cause) { setError(messageOf(cause)); } };
+  const detail = async (id: number) => { try { setSelected(await ombudsmanService.get(id)); } catch (cause) { handleError(cause); } };
   const update = async (next: TicketStatus) => {
     if (!selected || !window.confirm(`Alterar status para ${statuses[next]}?`)) return;
     setBusy(true); setError(undefined);
     try { await ombudsmanService.updateStatus(selected.id, next); await detail(selected.id); await load(); }
-    catch (cause) { setError(messageOf(cause)); } finally { setBusy(false); }
+    catch (cause) { handleError(cause); } finally { setBusy(false); }
   };
+  if (forbidden) return <Alert tone="danger">Acesso à Ouvidoria administrativa negado.</Alert>;
   const detailContent: ReactNode = selected && <>
     <p><strong>{types[selected.ticketType]}</strong> · {statuses[selected.status]}</p><p style={{ whiteSpace: "pre-wrap" }}>{selected.body}</p><p>Telefone: {selected.phone ? formatPhone(selected.phone) : "não informado"}</p><p className="small text-secondary">Registrada em {new Date(selected.occurredAt).toLocaleString("pt-BR")}</p>
     <div className="d-flex flex-wrap gap-2">{nextStatuses[selected.status].filter((next) => next !== "contact_attempt" || Boolean(selected.phone)).map((next) => <Button key={next} type="button" variant="secondary" disabled={busy} onClick={() => { void update(next); }}>{statuses[next]}</Button>)}</div>
@@ -76,7 +91,7 @@ export function OmbudsmanPage() {
       <label>Setor<select className="form-select" value={sectorId} onChange={(event) => setSectorId(event.target.value)}><option value="">Todos</option>{sectors.map((sector) => <option value={sector.id} key={sector.id}>{sector.name}</option>)}</select></label>
       <label>Tipo<select className="form-select" value={type} onChange={(event) => setType(event.target.value)}><option value="">Todos</option>{Object.entries(types).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
       <label>Status<select className="form-select" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos</option>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-      <Button type="submit" loading={busy}>Filtrar</Button>
+      <Button type="submit" className="fhdod-ombudsman-submit" loading={busy}>Filtrar</Button>
     </form>
     {!page && busy && <LoadingState />}
     {page && (page.items.length === 0 ? <EmptyState title="Sem manifestações">Nenhum registro corresponde aos filtros.</EmptyState> :

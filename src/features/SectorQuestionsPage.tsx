@@ -7,6 +7,7 @@ import { sectorsService, type Sector } from "./sectors";
 import { formDraftService, normalizeDraftItems, type DraftItem, type DraftReadiness, type FormDraft, type FormVersion, type VersionDetail } from "./formDraft";
 import { questionsService, type CatalogQuestion } from "./questions";
 import { QuestionPreview } from "./QuestionPreview";
+import { SectorQrContent } from "./SectorQrDialog";
 
 const requirementNames: Record<string, string> = {
   shift_ranges: "planilha de turnos", nps: "pergunta NPS", standard_questions: "pergunta padrão",
@@ -106,9 +107,9 @@ export function SectorQuestionsPage({ sectorId }: { sectorId: number; canManageS
   if (!draft) return <LoadingState />;
   const available = catalog.filter((question) => !items.some((item) => item.questionId === question.id));
   return <section>
-    <div className="fhdod-page-heading"><div><p className="eyebrow">Setor {sectorId}</p><h1>Editor do formulário</h1>
+    <div className="fhdod-editor-intro"><div className="fhdod-page-heading"><div><p className="eyebrow">Setor {sectorId}</p><h1>Editor do formulário</h1>
       <p>Vigente: {draft.publishedVersionId ? `versão ID ${draft.publishedVersionId}` : "sem publicação"} · Rascunho: {draft.draftStatus === "drafting" ? `revisão ${draft.revision}` : "nenhum"}</p>
-    </div></div>
+    </div></div>{sector && draft.publishedVersionId && <aside className="fhdod-profile-card fhdod-editor-qr"><h2>QR Code do setor</h2><SectorQrContent sector={sector} /><p className="small text-secondary mb-0">Disponibilize este QR Code aos pacientes para iniciar a avaliação.</p></aside>}</div>
     <p className="text-secondary">Setor selecionado: <strong>{sector?.name ?? sectorId}</strong>{sector?.code ? ` (${sector.code})` : ""}</p>
     {message && <Alert tone="success">{message}</Alert>}
     {error && <Alert tone="danger">{error}</Alert>}

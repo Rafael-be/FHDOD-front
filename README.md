@@ -9,7 +9,7 @@ Aplicação React 19 + TypeScript + Vite para a experiência do paciente. A API 
 3. Configure `.env.local` com `VITE_API_BASE_URL=` e `VITE_API_PROXY_TARGET=http://127.0.0.1:3317` (ou a porta real da API local).
 4. Execute `npm run dev` e abra o endereço informado pelo Vite.
 
-O proxy Vite encaminha `/api` à API; cookies HttpOnly e CSRF permanecem no cliente HTTP compartilhado. `VITE_API_BASE_URL` permite URL direta da API quando CORS e cookies estiverem configurados para essa origem. Não coloque credenciais do PostgreSQL nem segredos em variáveis `VITE_*`.
+O proxy Vite encaminha `/api` à API; cookies HttpOnly e CSRF permanecem no cliente HTTP compartilhado. `VITE_API_BASE_URL` permite URL direta da API quando CORS e cookies estiverem configurados para essa origem. Configure `VITE_PUBLIC_APP_URL` com a URL HTTPS pública do **frontend** para gerar QR Codes permanentes por setor; o link usa `/avaliacao/{sectorId}` e continua válido após uma nova publicação do formulário. Sem essa configuração, as ações de QR Code ficam indisponíveis. Não coloque credenciais do PostgreSQL nem segredos em variáveis `VITE_*`.
 
 ## Rotas e papéis
 
