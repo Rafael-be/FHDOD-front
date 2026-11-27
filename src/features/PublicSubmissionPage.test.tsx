@@ -151,7 +151,7 @@ describe("PublicSubmissionPage", () => {
     await act(async () => button("0").click());
     expect(button("Encerrar sessão")).toBeDefined();
     expect(button("Pular")).toBeDefined();
-    expect([...container.querySelectorAll(".fhdod-question-actions button")].map(item=>item.textContent)).toEqual(["Encerrar sessão","Pular"]);
+    expect([...container.querySelectorAll(".fhdod-question-actions button")].map(item=>item.textContent)).toEqual(["Reiniciar formulário","Encerrar sessão","Pular"]);
     vi.useFakeTimers();
     await act(async () => button("Encerrar sessão").click());
     expect(close).toHaveBeenCalledWith("session-1","token-1");
