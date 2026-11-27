@@ -18,16 +18,16 @@ const monthStart = () => `${today().slice(0, 7)}-01`;
 function Card({ label, value, priority = false }: { label: string; value: string; priority?: boolean }) {
   return <article className="fhdod-profile-card fhdod-kpi" data-priority={priority ? "high" : "normal"}><small>{label}</small><strong>{value}</strong></article>;
 }
-function Bars({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
+export function Bars({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
   const max = Math.max(1, ...rows.map((row) => row.value));
   return <section className="fhdod-profile-card fhdod-chart-panel"><h2>{title}</h2>{rows.length === 0 ? <p className="text-secondary">Sem dados no período.</p> : rows.map((row) => <div className="fhdod-chart-row" key={row.label}><div><span>{row.label}</span><strong>{format(row.value, 0)}</strong></div><div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)}`}><div className="progress-bar" style={{ width: `${(row.value / max) * 100}%` }} /></div></div>)}</section>;
 }
-export function Donut({ rows }: { rows: { label: string; value: number; score: number }[] }) {
+export function Donut({ rows, title = "Distribuição de notas gerais", emptyMessage = "Sem dados no período." }: { rows: { label: string; value: number; score: number }[]; title?: string; emptyMessage?: string }) {
   const [activeScore, setActiveScore] = useState<number | null>(null);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   let cursor = 0;
   const stops = rows.filter(row => row.value > 0).map(row => { const start = cursor; cursor += row.value / total * 100; return `${satisfactionScoreColors[row.score]} ${start}% ${cursor}%`; });
-  return <section className="fhdod-profile-card fhdod-chart-panel fhdod-donut-panel"><h2>Distribuição de notas gerais</h2>{!total && <p className="text-secondary">Sem dados no período.</p>}
+  return <section className="fhdod-profile-card fhdod-chart-panel fhdod-donut-panel"><h2>{title}</h2>{!total && <p className="text-secondary">{emptyMessage}</p>}
     <div className="fhdod-donut-layout"><div className="fhdod-donut" role="img" aria-label={`Distribuição de notas: ${format(total, 0)} respostas`} style={{ background: total ? `conic-gradient(${stops.join(", ")})` : "var(--color-surface-muted)" }} />
       <ul className="fhdod-donut-legend">{rows.map(row => { const percent = total ? row.value / total * 100 : 0; return <li key={row.label} role="button" tabIndex={0} aria-pressed={activeScore === row.score} data-active={activeScore === row.score} onClick={() => setActiveScore(current => current === row.score ? null : row.score)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setActiveScore(current => current === row.score ? null : row.score); } }} style={{ "--legend-color": satisfactionScoreColors[row.score] } as CSSProperties} aria-label={`${row.label}: ${format(row.value, 0)} respostas, ${format(percent)}%`}><span>{row.label}</span><strong>{format(percent)}%</strong><span className="fhdod-donut-detail" role="tooltip">{format(row.value, 0)} respostas · {format(percent)}%</span></li>; })}</ul>
     </div></section>;

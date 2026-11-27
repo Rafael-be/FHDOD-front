@@ -23,6 +23,10 @@ it("consulta apenas a rota pública sem cookies e recupera após falha no interv
   expect(fetch).toHaveBeenCalledWith("/api/public/tv-wall", expect.objectContaining({credentials:"omit"}));
   expect(host.textContent).toContain("-12");
   expect(host.textContent).toContain("Indisponível");
+  expect(host.querySelector(".tv-wall-charts")).not.toBeNull();
+  expect(host.querySelector(".fhdod-donut")).not.toBeNull();
+  expect(host.querySelectorAll(".fhdod-chart-row").length).toBeGreaterThan(0);
+  expect(host.querySelector(".fhdod-heatmap")).not.toBeNull();
   expect(host.textContent).not.toContain("texto privado");
   await act(async () => vi.advanceTimersByTimeAsync(30005));
   expect(host.textContent).toContain("Falha ao atualizar");

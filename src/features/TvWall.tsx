@@ -5,6 +5,8 @@ import { Button } from "../components/ui/Button";
 import { loadPublicDisplay, type Indicator } from "./tvDisplay";
 import { api } from "../services/http";
 import { sectorsService } from "./sectors";
+import { Bars, Donut } from "./AnalyticsPage";
+import { SatisfactionHeatmap } from "./AnalyticsInsights";
 
 const titles = { completionRate: "Taxa de conclusão", nps: "NPS médio", npsGroups: "Classificação do NPS" };
 type Metric = keyof typeof titles;
@@ -19,6 +21,21 @@ function Tiles({ indicators, preview = false }: {indicators: Indicator[]; previe
         <div key={label}><dt>{label}</dt><dd>{value}%</dd></div>)}</dl> :
       <strong>{item.value}{item.id === "completionRate" && "%"}</strong>}
   </article>)}</div>;
+}
+
+function TvWallCharts({ indicators }: { indicators: Indicator[] }) {
+  const emptyDistribution = [1, 2, 3, 4, 5].map(score => ({label: `Nota ${score}`, value: 0, score}));
+  const npsGroups = indicators.find(item => item.id === "npsGroups")?.value;
+  const npsRows = npsGroups && typeof npsGroups === "object" ? [
+    {label: "Bons (9–10)", value: npsGroups.promoters},
+    {label: "Neutros (7–8)", value: npsGroups.passives},
+    {label: "Ruins (0–6)", value: npsGroups.detractors},
+  ] : [{label: "Bons (9–10)", value: 0}, {label: "Neutros (7–8)", value: 0}, {label: "Ruins (0–6)", value: 0}];
+  return <section className="tv-wall-charts" aria-label="Gráficos do TV Wall">
+    <Donut title="Distribuição de notas" emptyMessage="Sem avaliações no período." rows={emptyDistribution} />
+    <Bars title="Classificação do NPS" rows={npsRows} />
+    <SatisfactionHeatmap rows={[]} names={new Map()} emptyMessage="Sem avaliações no período." />
+  </section>;
 }
 
 export function TvWall() {
@@ -41,7 +58,7 @@ export function TvWall() {
     {fullscreenError && <p role="status">Tela cheia indisponível neste navegador.</p>}
     {wall.isPending && <LoadingState/>}
     {wall.isError && <p role="alert">Falha ao atualizar os indicadores. Uma nova tentativa será feita automaticamente.</p>}
-    {wall.isSuccess && (wall.data.indicators.length ? <Tiles indicators={wall.data.indicators}/> : <p>Nenhum indicador publicado.</p>)}
+    {wall.isSuccess && <>{wall.data.indicators.length ? <Tiles indicators={wall.data.indicators}/> : <p>Nenhum indicador publicado.</p>}<TvWallCharts indicators={wall.data.indicators}/></>}
   </main>;
 }
 

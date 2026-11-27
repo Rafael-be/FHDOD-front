@@ -13,7 +13,7 @@ function HeatCell({ value, unit, responses, low, high, label }: { value: number 
   return <td className="fhdod-heat-cell" data-label={label} data-grade={grade(value, low, high)} tabIndex={0} title={detail} aria-label={detail}>{displayed}</td>;
 }
 
-export function SatisfactionHeatmap({ rows, names }: { rows: SectorHeatmapMetric[]; names: Map<number, string> }) {
+export function SatisfactionHeatmap({ rows, names, emptyMessage = "Sem setores disponíveis para este recorte." }: { rows: SectorHeatmapMetric[]; names: Map<number, string>; emptyMessage?: string }) {
   return <section className="fhdod-profile-card fhdod-chart-panel fhdod-heatmap"><h3>Mapa de satisfação por setor</h3>
     <div className="fhdod-heatmap-table"><table><thead><tr><th scope="col">Setor</th><th scope="col">Satisfação<br />1–5</th><th scope="col">Nota NPS<br />0–10</th><th scope="col">Positivas<br />4–5</th><th scope="col">Conclusão</th></tr></thead><tbody>
       {rows.map(row => <tr key={row.sectorId}><th scope="row">{names.get(row.sectorId) ?? `Setor ${row.sectorId}`}</th>
@@ -22,7 +22,7 @@ export function SatisfactionHeatmap({ rows, names }: { rows: SectorHeatmapMetric
         <HeatCell label="Positivas" value={row.positivePercentage} unit="%" responses={row.responses} low={50} high={75} />
         <HeatCell label="Conclusão" value={row.completionRate} unit="%" responses={row.started} low={60} high={85} /></tr>)}
     </tbody></table></div>
-    {rows.length === 0 && <p>Sem setores disponíveis para este recorte.</p>}
+    {rows.length === 0 && <p>{emptyMessage}</p>}
     <div className="fhdod-heat-legend" aria-label="Legenda das faixas"><span data-grade="critical">Crítico</span><span data-grade="middle">Intermediário</span><span data-grade="positive">Positivo</span><span data-grade="none">Sem dados</span></div>
   </section>;
 }

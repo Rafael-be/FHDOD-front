@@ -385,6 +385,11 @@ small, .small { font-size: .875rem; }
 .wall-tiles h2 { color: inherit; font-size: clamp(1.3rem, 2.3vw, 4rem); }
 .wall-tiles strong { color: #a9efcd; font-size: clamp(3rem, 7vw, 9rem); }
 .wall-tiles dl div { display: flex; justify-content: space-between; gap: 1rem; font-size: clamp(1.2rem, 2vw, 3rem); }
+.tv-wall-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5vw; }
+.tv-wall-charts .fhdod-profile-card { min-width: 0; margin: 0; }
+.tv-wall-charts .fhdod-chart-panel h2, .tv-wall-charts .fhdod-chart-panel h3 { font-size: clamp(1.3rem, 2.3vw, 3rem); }
+.tv-wall-charts .fhdod-donut { width: min(100%, 22rem); }
+@media (max-width: 900px) { .tv-wall-charts { grid-template-columns: 1fr; } }
 
 /* Analytics insights */
 .fhdod-chart-panel h3 { margin: 0 0 var(--space-4); font-size: 1.1rem; }
