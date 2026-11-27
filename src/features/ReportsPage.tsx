@@ -30,6 +30,7 @@ export function ReportsPage({ canManage }: { canManage: boolean }) {
   const [pollAttempt, setPollAttempt] = useState(0);
   const [error, setError] = useState("");
   useEffect(() => { let active = true; Promise.all([reportsService.types(), sectorsService.list()]).then(([available, authorized]) => { if (!active) return; const permitted = available.filter(option => canManage || option.type !== "ombudsman"); setTypes(permitted); setSectors(authorized.filter(sector => !sector.deletedAt)); if (permitted.length && !permitted.some(option => option.type === "general")) setFilters(current => ({ ...current, type: permitted[0].type })); }).catch(cause => { if (active) setError(message(cause)); }); return () => { active = false; }; }, [canManage]);
+  useEffect(() => { setJob(null); }, [filters.type, filters.from, filters.to, filters.sectorId]);
   useEffect(() => {
     if (!job || (job.status !== "pending" && job.status !== "processing")) return;
     let active = true;
