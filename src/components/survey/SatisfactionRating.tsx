@@ -21,7 +21,6 @@ export function SatisfactionRating({ options, selected, disabled = false, onSele
     {scores.map((score) => <Button key={score} type="button" className="fhdod-satisfaction-rating__option" variant={selected === score ? "primary" : "secondary"} aria-label={`Nota ${score} — ${meaningByScore[score]}`} aria-pressed={selected === score} disabled={disabled} onClick={() => onSelect(score)}>
       <img className="fhdod-satisfaction-rating__face" src={faceByScore[score]} alt="" aria-hidden="true" />
       <span className="fhdod-satisfaction-rating__score">{score}</span>
-      <span className="visually-hidden">{meaningByScore[score]}</span>
     </Button>)}
   </div>;
 }
