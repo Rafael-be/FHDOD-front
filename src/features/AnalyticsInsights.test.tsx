@@ -28,6 +28,10 @@ it("usa todas as notas da API e a ordem do formulário vigente sem incluir NPS",
   expect(view.node.querySelector(".fhdod-question-distribution")?.textContent).toContain("Atendimento");
   expect(view.node.textContent).not.toContain("Distribuição indisponível na API");
   expect(view.node.querySelectorAll(".fhdod-stacked-bar")).toHaveLength(2);
+  const distribution = view.node.querySelectorAll(".fhdod-stacked-bar")[0].querySelectorAll("span");
+  expect(distribution).toHaveLength(1);
+  expect((distribution[0] as HTMLElement).style.background).toBe("rgb(124, 179, 66)");
+  expect(view.node.querySelector('.fhdod-score-legend span[style*="D32F2F"]')).not.toBeNull();
   await view.close();
 });
 

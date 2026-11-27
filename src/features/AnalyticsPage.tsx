@@ -7,6 +7,7 @@ import { npsMean, satisfaction } from "./analyticsMetrics";
 import { sectorsService, type Sector } from "./sectors";
 import { analyticsService, completionIndicators, type AnalyticsDashboard, type AnalyticsFilter } from "./analytics";
 import { dashboardForShift, shiftNames, type ShiftName } from "./analyticsAggregation";
+import { npsGroupColors, satisfactionScoreColors } from "./analyticsChartColors";
 
 const decimal = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 1});
 const integer = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 0});
@@ -21,15 +22,14 @@ function Bars({ title, rows }: { title: string; rows: { label: string; value: nu
   const max = Math.max(1, ...rows.map((row) => row.value));
   return <section className="fhdod-profile-card fhdod-chart-panel"><h2>{title}</h2>{rows.length === 0 ? <p className="text-secondary">Sem dados no período.</p> : rows.map((row) => <div className="fhdod-chart-row" key={row.label}><div><span>{row.label}</span><strong>{format(row.value, 0)}</strong></div><div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)}`}><div className="progress-bar" style={{ width: `${(row.value / max) * 100}%` }} /></div></div>)}</section>;
 }
-function Donut({ rows }: { rows: { label: string; value: number; score: number }[] }) {
+export function Donut({ rows }: { rows: { label: string; value: number; score: number }[] }) {
   const [activeScore, setActiveScore] = useState<number | null>(null);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
-  const colors = ["var(--color-primary-deep)", "var(--color-warning)", "var(--color-text-muted)", "var(--color-success)", "var(--color-primary)"];
   let cursor = 0;
-  const stops = rows.filter(row => row.value > 0).map(row => { const start = cursor; cursor += row.value / total * 100; return `${colors[row.score - 1]} ${start}% ${cursor}%`; });
+  const stops = rows.filter(row => row.value > 0).map(row => { const start = cursor; cursor += row.value / total * 100; return `${satisfactionScoreColors[row.score]} ${start}% ${cursor}%`; });
   return <section className="fhdod-profile-card fhdod-chart-panel fhdod-donut-panel"><h2>Distribuição de notas gerais</h2>{!total && <p className="text-secondary">Sem dados no período.</p>}
     <div className="fhdod-donut-layout"><div className="fhdod-donut" role="img" aria-label={`Distribuição de notas: ${format(total, 0)} respostas`} style={{ background: total ? `conic-gradient(${stops.join(", ")})` : "var(--color-surface-muted)" }} />
-      <ul className="fhdod-donut-legend">{rows.map(row => { const percent = total ? row.value / total * 100 : 0; return <li key={row.label} role="button" tabIndex={0} aria-pressed={activeScore === row.score} data-active={activeScore === row.score} onClick={() => setActiveScore(current => current === row.score ? null : row.score)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setActiveScore(current => current === row.score ? null : row.score); } }} style={{ "--legend-color": colors[row.score - 1] } as CSSProperties} aria-label={`${row.label}: ${format(row.value, 0)} respostas, ${format(percent)}%`}><span>{row.label}</span><strong>{format(percent)}%</strong><span className="fhdod-donut-detail" role="tooltip">{format(row.value, 0)} respostas · {format(percent)}%</span></li>; })}</ul>
+      <ul className="fhdod-donut-legend">{rows.map(row => { const percent = total ? row.value / total * 100 : 0; return <li key={row.label} role="button" tabIndex={0} aria-pressed={activeScore === row.score} data-active={activeScore === row.score} onClick={() => setActiveScore(current => current === row.score ? null : row.score)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setActiveScore(current => current === row.score ? null : row.score); } }} style={{ "--legend-color": satisfactionScoreColors[row.score] } as CSSProperties} aria-label={`${row.label}: ${format(row.value, 0)} respostas, ${format(percent)}%`}><span>{row.label}</span><strong>{format(percent)}%</strong><span className="fhdod-donut-detail" role="tooltip">{format(row.value, 0)} respostas · {format(percent)}%</span></li>; })}</ul>
     </div></section>;
 }
 function Trend({ data }: { data: AnalyticsDashboard["daily"] }) {
@@ -123,7 +123,7 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
       <div className="fhdod-chart-grid fhdod-chart-grid--equal">
         <Donut rows={noteBuckets.map(row => ({ label: `Nota ${row.score}`, value: row.responses, score: row.score }))} />
         <section className="fhdod-profile-card fhdod-chart-panel fhdod-nps-panel"><h2>Classificação do NPS</h2>
-          {data.nps.responses === 0 ? <p className="text-secondary">Sem respostas NPS no período.</p> : [["Bons (9–10)", data.nps.promoters], ["Neutros (7–8)", data.nps.passives], ["Ruins (0–6)", data.nps.detractors]].map(([label, count]) => <div className="fhdod-chart-row" key={String(label)}><div><span>{label}</span><strong>{format(Number(count), 0)}</strong></div><div className="progress" role="img" aria-label={`${label}: ${format(Number(count), 0)} respostas`}><div className="progress-bar" style={{width:`${Number(count) / data.nps.responses * 100}%`}} /></div></div>)}
+          {data.nps.responses === 0 ? <p className="text-secondary">Sem respostas NPS no período.</p> : [["Bons (9–10)", data.nps.promoters, npsGroupColors.promoters], ["Neutros (7–8)", data.nps.passives, npsGroupColors.passives], ["Ruins (0–6)", data.nps.detractors, npsGroupColors.detractors]].map(([label, count, color]) => <div className="fhdod-chart-row" key={String(label)}><div><span>{label}</span><strong>{format(Number(count), 0)}</strong></div><div className="progress" role="img" aria-label={`${label}: ${format(Number(count), 0)} respostas`}><div className="progress-bar" style={{width:`${Number(count) / data.nps.responses * 100}%`,background:color as string}} /></div></div>)}
           <div className="fhdod-nps-groups" aria-label="Percentuais do NPS">{[["Bons (9–10)", data.nps.promoters], ["Neutros (7–8)", data.nps.passives], ["Ruins (0–6)", data.nps.detractors]].map(([label, count]) => <div key={String(label)}><small>{label}</small><strong>{data.nps.responses ? percentage(Number(count) / data.nps.responses * 100) : "Sem respostas"}</strong></div>)}</div>
         </section>
       </div>

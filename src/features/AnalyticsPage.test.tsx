@@ -2,7 +2,7 @@ import {act} from "react";
 import {createRoot} from "react-dom/client";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import {afterEach, expect, it, vi} from "vitest";
-import {AnalyticsPage} from "./AnalyticsPage";
+import {AnalyticsPage, Donut} from "./AnalyticsPage";
 import {analyticsService, type AnalyticsDashboard} from "./analytics";
 import {sectorsService} from "./sectors";
 
@@ -99,4 +99,12 @@ it("mostra falha da API sem indicadores antigos", async()=>{
     expect(container.textContent).toContain("Falha da API de indicadores");
     expect(container.textContent).not.toContain("Visão geral");
   } finally {await cleanup();}
+});
+
+it("associa a cor do donut ao valor real da nota mesmo fora de ordem", async()=>{
+  const container=document.createElement("div"),root=createRoot(container);
+  await act(async()=>root.render(<Donut rows={[{label:"Nota 5",value:1,score:5},{label:"Nota 1",value:2,score:1},{label:"Nota 3",value:3,score:3}]}/>));
+  const labels=[...container.querySelectorAll("li")];
+  expect(labels.map(label=>label.style.getPropertyValue("--legend-color"))).toEqual(["#2E7D32","#D32F2F","#FBC02D"]);
+  await act(async()=>root.unmount());
 });
