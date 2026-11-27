@@ -17,12 +17,12 @@ const report = (started=100, complete=70, shifts: AnalyticsDashboard["shifts"] =
   nps:{responses:10,promoters:5,passives:3,detractors:2,value:30},shifts,unclassifiedCompleted:0,
   questions:[],sectors:[{sector_id:2,started,complete}],daily:[{day:"2026-11-01",started,complete}],dailyAnswers:[],distribution:[],ombudsman:[],teamAttributionAvailable:false,responseRate:null,privacyNotice:"",timeZone:"America/Sao_Paulo",
 });
-async function render() {
+async function render(canManage = false) {
   if (!vi.isMockFunction(analyticsService.heatmap)) vi.spyOn(analyticsService,"heatmap").mockResolvedValue([]);
   if (!vi.isMockFunction(analyticsService.questionDistribution)) vi.spyOn(analyticsService,"questionDistribution").mockResolvedValue({sectorId:2,formVersionId:40,questions:[]});
   if (!vi.isMockFunction(analyticsService.criticalQuestions)) vi.spyOn(analyticsService,"criticalQuestions").mockResolvedValue({minimumResponses:5,items:[]});
   const container=document.createElement("div"),root=createRoot(container),client=new QueryClient();
-  await act(async()=>root.render(<QueryClientProvider client={client}><AnalyticsPage canManage={false} userId={1}/></QueryClientProvider>));
+  await act(async()=>root.render(<QueryClientProvider client={client}><AnalyticsPage canManage={canManage} userId={1}/></QueryClientProvider>));
   for (let attempt=0; attempt<30 && !container.textContent?.includes("Taxa de conclusão:"); attempt++) {
     await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
   }
@@ -34,8 +34,7 @@ const change=async(select:HTMLSelectElement,value:string)=>{await act(async()=>{
 it("restaura select nativo de setor, gráfico de um dia e séries 100/70", async()=>{
   vi.spyOn(sectorsService,"list").mockResolvedValue([{id:2,name:"Internação",code:"INT",deletedAt:null},{id:4,name:"Pronto Atendimento",code:"PA",deletedAt:null}]);
   const dashboard=vi.spyOn(analyticsService,"dashboard").mockResolvedValue(report());
-  const questions=vi.spyOn(analyticsService,"questions").mockResolvedValue([]);
-  const {container,cleanup}=await render();
+  const {container,cleanup}=await render(true);
   try {
     const sector=container.querySelector("#analytics-sector") as HTMLSelectElement;
     const shift=container.querySelector("#analytics-shift") as HTMLSelectElement;
@@ -45,6 +44,8 @@ it("restaura select nativo de setor, gráfico de um dia e séries 100/70", async
     expect(container.textContent).toContain("Taxa de conclusão: 70%");
     expect(container.textContent).toContain("Nota média NPSIndisponível");
     expect(container.textContent).not.toContain("Distribuição por pergunta do formulário vigente");
+    expect(container.textContent).not.toContain("Satisfação por pergunta global");
+    expect(container.textContent).not.toContain("Ouvidoria por tipo e status");
     const lines=container.querySelectorAll("polyline");
     expect(lines).toHaveLength(2);
     expect(lines[0].getAttribute("points")).not.toBe(lines[1].getAttribute("points"));
@@ -56,7 +57,6 @@ it("restaura select nativo de setor, gráfico de um dia e séries 100/70", async
     expect(container.textContent).toContain("Noite20");
     await change(sector,"2"); await apply(container);
     expect(dashboard.mock.lastCall?.[0]).toMatchObject({sectorId:2});
-    expect(questions.mock.lastCall?.[0]).toMatchObject({sectorId:2});
     expect(container.textContent).toContain("Distribuição por pergunta do formulário vigente");
     await change(sector,""); await apply(container);
     expect(sector.value).toBe("");
@@ -74,7 +74,6 @@ it("agrega várias faixas históricas do mesmo turno e combina filtro de setor",
     if (filter.shiftRangeId===13) return report(20,10,[base.shifts[1]]);
     throw new Error("ID inesperado");
   });
-  const questions=vi.spyOn(analyticsService,"questions").mockResolvedValue([]);
   const {container,cleanup}=await render();
   try {
     const shift=container.querySelector("#analytics-shift") as HTMLSelectElement;
@@ -84,12 +83,10 @@ it("agrega várias faixas históricas do mesmo turno e combina filtro de setor",
     expect(container.textContent).toContain("Taxa de conclusão: 60%");
     expect(container.textContent).toContain("Madrugada30");
     expect(container.textContent).toContain("Dia0");
-    expect(questions.mock.calls.map(call=>call[0].shiftRangeId).filter(Boolean).sort()).toEqual([10,13]);
     await change(sector,"2"); await apply(container);
     expect(dashboard.mock.lastCall?.[0]).toMatchObject({sectorId:2});
     expect(dashboard.mock.calls.filter(call=>call[0].sectorId===2 && call[0].shiftRangeId===13)).toHaveLength(0);
     expect(dashboard.mock.calls.some(call=>call[0].sectorId===2 && call[0].shiftRangeId===10)).toBe(true);
-    expect(questions.mock.calls.some(call=>call[0].sectorId===2 && call[0].shiftRangeId===10)).toBe(true);
     await vi.waitFor(() => expect(container.textContent).toContain("Madrugada20"));
   } finally {await cleanup();}
 });

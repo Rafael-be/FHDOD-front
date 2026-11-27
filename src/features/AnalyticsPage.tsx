@@ -2,12 +2,11 @@ import { useState, type CSSProperties, type FormEvent } from "react";
 import { Alert, EmptyState, LoadingState } from "../components/ui/Feedback";
 import { Button } from "../components/ui/Button";
 import { useQuery } from "@tanstack/react-query";
-import { GlobalQuestions } from "./GlobalQuestions";
 import { CriticalRanking, QuestionDistribution, SatisfactionHeatmap, ShiftOverview } from "./AnalyticsInsights";
 import { npsMean, satisfaction } from "./analyticsMetrics";
 import { sectorsService, type Sector } from "./sectors";
 import { analyticsService, completionIndicators, type AnalyticsDashboard, type AnalyticsFilter } from "./analytics";
-import { dashboardForShift, questionsForShift, shiftNames, type ShiftName } from "./analyticsAggregation";
+import { dashboardForShift, shiftNames, type ShiftName } from "./analyticsAggregation";
 
 const decimal = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 1});
 const integer = new Intl.NumberFormat("pt-BR", {maximumFractionDigits: 0});
@@ -59,7 +58,6 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
   const sectors = useQuery({ queryKey: ["sectors", ...scope], queryFn: () => sectorsService.list(), retry: false, staleTime: 60000 });
   const base = useQuery({ queryKey: ["dashboard", ...scope, filter], queryFn: ({signal}) => analyticsService.dashboard(filter, signal), retry: false, staleTime: 60000 });
   const dashboard = useQuery({ queryKey: ["dashboard-view", ...scope, filter, appliedShift], enabled: !!base.data, queryFn: ({signal}) => appliedShift ? dashboardForShift(filter, base.data!, appliedShift, signal) : base.data!, retry: false, staleTime: 60000 });
-  const questions = useQuery({ queryKey: ["global-questions", ...scope, filter, appliedShift], enabled: !!base.data, queryFn: ({signal}) => appliedShift ? questionsForShift(filter, base.data!, appliedShift, signal) : analyticsService.questions(filter, signal), retry: false, staleTime: 60000 });
   const singleSector = filter.sectorId ?? null;
   const heatmap = useQuery({ queryKey: ["analytics-heatmap", ...scope, filter], queryFn: ({signal}) => analyticsService.heatmap(filter,signal), enabled: !appliedShift, retry: false, staleTime: 60000 });
   const distribution = useQuery({ queryKey: ["analytics-question-distribution", ...scope, filter], queryFn: ({signal}) => analyticsService.questionDistribution(filter,signal), enabled: singleSector !== null && !appliedShift, retry: false, staleTime: 60000 });
@@ -131,11 +129,7 @@ export function AnalyticsPage({ canManage, userId }: { canManage: boolean; userI
       </div>
       <h2 className="fhdod-section-title">Operação e Ouvidoria</h2>
       <ShiftOverview report={data} />
-      {canManage && <Bars title="Ouvidoria por tipo e status" rows={data.ombudsman.map(row => ({ label: `${name(row.sector_id)} · ${row.ticket_type} · ${row.status}`, value: row.tickets }))} />}
       <p className="small text-secondary">{data.privacyNotice}</p>
     </>}
-    {questions.isPending && <LoadingState />}
-    {questions.isError && <Alert tone="danger">{questions.error.message} <button onClick={() => void questions.refetch()}>Tentar novamente</button></Alert>}
-    {questions.isSuccess && <GlobalQuestions rows={questions.data} selected={selected} name={name} />}
   </section>;
 }
