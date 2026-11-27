@@ -7,6 +7,9 @@ import { api } from "../services/http";
 import { sectorsService } from "./sectors";
 import { Bars, Donut } from "./AnalyticsPage";
 import { SatisfactionHeatmap } from "./AnalyticsInsights";
+import { analyticsService, type AnalyticsFilter } from "./analytics";
+import { npsGroupColors } from "./analyticsChartColors";
+import { useAuth } from "./auth/AuthContext";
 
 const titles = { completionRate: "Taxa de conclusão", nps: "NPS médio", npsGroups: "Classificação do NPS" };
 type Metric = keyof typeof titles;
@@ -23,18 +26,36 @@ function Tiles({ indicators, preview = false }: {indicators: Indicator[]; previe
   </article>)}</div>;
 }
 
-function TvWallCharts({ indicators }: { indicators: Indicator[] }) {
-  const emptyDistribution = [1, 2, 3, 4, 5].map(score => ({label: `Nota ${score}`, value: 0, score}));
+function tvWallFilter(periodDays: number): AnalyticsFilter {
+  const today = new Date().toLocaleDateString("en-CA", {timeZone: "America/Sao_Paulo"});
+  const end = new Date(`${today}T00:00:00-03:00`);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - periodDays);
+  return {from: start.toISOString(), to: end.toISOString()};
+}
+
+function errorMessage(error: unknown) { return error instanceof Error ? error.message : "Falha ao carregar dados dos indicadores."; }
+
+function TvWallCharts({ indicators, periodDays }: { indicators: Indicator[]; periodDays: number }) {
+  const {status, user} = useAuth();
   const npsGroups = indicators.find(item => item.id === "npsGroups")?.value;
   const npsRows = npsGroups && typeof npsGroups === "object" ? [
-    {label: "Bons (9–10)", value: npsGroups.promoters},
-    {label: "Neutros (7–8)", value: npsGroups.passives},
-    {label: "Ruins (0–6)", value: npsGroups.detractors},
-  ] : [{label: "Bons (9–10)", value: 0}, {label: "Neutros (7–8)", value: 0}, {label: "Ruins (0–6)", value: 0}];
+    {label: "Promotores (9–10)", value: npsGroups.promoters, color: npsGroupColors.promoters},
+    {label: "Passivos (7–8)", value: npsGroups.passives, color: npsGroupColors.passives},
+    {label: "Detratores (0–6)", value: npsGroups.detractors, color: npsGroupColors.detractors},
+  ] : [{label: "Promotores (9–10)", value: 0, color: npsGroupColors.promoters}, {label: "Passivos (7–8)", value: 0, color: npsGroupColors.passives}, {label: "Detratores (0–6)", value: 0, color: npsGroupColors.detractors}];
+  const filter = tvWallFilter(periodDays);
+  const enabled = status === "authenticated";
+  const dashboard = useQuery({queryKey: ["tv-wall-dashboard", user?.id, periodDays], queryFn: ({signal}) => analyticsService.dashboard(filter, signal), enabled, retry: false, staleTime: 30000, refetchInterval: 60000});
+  const heatmap = useQuery({queryKey: ["tv-wall-heatmap", user?.id, periodDays], queryFn: ({signal}) => analyticsService.heatmap(filter, signal), enabled, retry: false, staleTime: 30000, refetchInterval: 60000});
+  const sectors = useQuery({queryKey: ["tv-wall-sectors", user?.id], queryFn: () => sectorsService.list(), enabled, retry: false, staleTime: 60000});
+  const notes = dashboard.data?.distribution.filter(row => !row.is_nps) ?? [];
+  const distribution = [1, 2, 3, 4, 5].map(score => ({label: `Nota ${score}`, value: notes.find(row => row.score === score)?.responses ?? 0, score}));
+  const names = new Map((sectors.data ?? []).map(sector => [sector.id, sector.name]));
   return <section className="tv-wall-charts" aria-label="Gráficos do TV Wall">
-    <Donut title="Distribuição de notas" emptyMessage="Sem avaliações no período." rows={emptyDistribution} />
+    {!enabled ? <p>Distribuição de notas: faça login para consultar os mesmos dados protegidos de Indicadores.</p> : dashboard.isError ? <p role="alert">Distribuição indisponível: {errorMessage(dashboard.error)}</p> : <Donut title="Distribuição de notas" emptyMessage="Sem avaliações no período." rows={distribution} />}
     <Bars title="Classificação do NPS" rows={npsRows} />
-    <SatisfactionHeatmap rows={[]} names={new Map()} emptyMessage="Sem avaliações no período." />
+    {!enabled ? <p>Mapa por setor: faça login para consultar os mesmos dados protegidos de Indicadores.</p> : heatmap.isError || (heatmap.isSuccess && !Array.isArray(heatmap.data)) ? <p role="alert">Mapa por setor indisponível: {heatmap.isError ? errorMessage(heatmap.error) : "A API retornou um formato inválido."}</p> : <SatisfactionHeatmap rows={heatmap.data ?? []} names={names} emptyMessage={heatmap.isPending ? "Carregando dados dos setores…" : "Sem avaliações no período."} />}
   </section>;
 }
 
@@ -58,7 +79,7 @@ export function TvWall() {
     {fullscreenError && <p role="status">Tela cheia indisponível neste navegador.</p>}
     {wall.isPending && <LoadingState/>}
     {wall.isError && <p role="alert">Falha ao atualizar os indicadores. Uma nova tentativa será feita automaticamente.</p>}
-    {wall.isSuccess && <>{wall.data.indicators.length ? <Tiles indicators={wall.data.indicators}/> : <p>Nenhum indicador publicado.</p>}<TvWallCharts indicators={wall.data.indicators}/></>}
+    {wall.isSuccess && <>{wall.data.indicators.length ? <Tiles indicators={wall.data.indicators}/> : <p>Nenhum indicador publicado.</p>}<TvWallCharts indicators={wall.data.indicators} periodDays={wall.data.periodDays}/></>}
   </main>;
 }
 

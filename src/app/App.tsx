@@ -91,4 +91,4 @@ function Router() {
 }
 
 const queryClient = new QueryClient();
-export function App() { return <QueryClientProvider client={queryClient}>{window.location.pathname === "/tv-wall" ? <TvWall /> : <AuthProvider><Router /></AuthProvider>}</QueryClientProvider>; }
+export function App() { return <QueryClientProvider client={queryClient}><AuthProvider>{window.location.pathname === "/tv-wall" ? <TvWall /> : <Router />}</AuthProvider></QueryClientProvider>; }

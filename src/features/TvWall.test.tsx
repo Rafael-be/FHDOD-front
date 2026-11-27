@@ -7,12 +7,14 @@ import {loadPublicDisplay} from "./tvDisplay";
 import {App} from "../app/App";
 import {api} from "../services/http";
 import {sectorsService} from "./sectors";
+import {authService} from "./auth/auth.service";
 
 Object.assign(globalThis, {IS_REACT_ACT_ENVIRONMENT: true});
 afterEach(() => {vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); window.history.replaceState({}, "", "/");});
 it("consulta apenas a rota pública sem cookies e recupera após falha no intervalo configurado", async () => {
   vi.useFakeTimers();
-  const response = () => Response.json({data: {periodDays: 7, refreshSeconds: 30, indicators: [{id:"nps",value:-12}, {id:"completionRate",value:null}], body:"texto privado"}});
+  vi.spyOn(authService, "resume").mockRejectedValue(new Error("anonymous"));
+  const response = () => Response.json({data: {periodDays: 7, refreshSeconds: 30, indicators: [{id:"nps",value:-12}, {id:"npsGroups",value:{promoters:4,passives:3,detractors:3}}, {id:"completionRate",value:null}], body:"texto privado"}});
   const fetch = vi.fn().mockResolvedValueOnce(response()).mockRejectedValueOnce(new TypeError("offline")).mockResolvedValueOnce(response());
   vi.stubGlobal("fetch", fetch);
   window.history.replaceState({}, "", "/tv-wall");
@@ -24,9 +26,10 @@ it("consulta apenas a rota pública sem cookies e recupera após falha no interv
   expect(host.textContent).toContain("-12");
   expect(host.textContent).toContain("Indisponível");
   expect(host.querySelector(".tv-wall-charts")).not.toBeNull();
-  expect(host.querySelector(".fhdod-donut")).not.toBeNull();
   expect(host.querySelectorAll(".fhdod-chart-row").length).toBeGreaterThan(0);
-  expect(host.querySelector(".fhdod-heatmap")).not.toBeNull();
+  expect(host.textContent).toContain("Promotores (9–10)4");
+  expect([...host.querySelectorAll(".tv-wall-charts .fhdod-chart-row .progress-bar")].map(bar => (bar as HTMLElement).style.background)).toEqual(["rgb(46, 125, 50)", "rgb(251, 192, 45)", "rgb(211, 47, 47)"]);
+  expect(host.textContent).toContain("faça login para consultar os mesmos dados protegidos de Indicadores");
   expect(host.textContent).not.toContain("texto privado");
   await act(async () => vi.advanceTimersByTimeAsync(30005));
   expect(host.textContent).toContain("Falha ao atualizar");
@@ -35,6 +38,28 @@ it("consulta apenas a rota pública sem cookies e recupera após falha no interv
   await act(async () => root.unmount());
   await vi.advanceTimersByTimeAsync(60000);
   expect(fetch).toHaveBeenCalledTimes(3);
+});
+it("reutiliza dashboard e mapa de Indicadores em sessão autenticada", async () => {
+  vi.spyOn(authService, "resume").mockResolvedValue({user: {id: 7, name: "Gestor", email: "gestor@test.invalid", role: "superuser", mustChangePassword: false}});
+  const publicData = {periodDays: 7, refreshSeconds: 60, indicators: [{id:"npsGroups",value:{promoters:4,passives:3,detractors:3}}]};
+  const dashboard = {sessions:{completionRate:80,nonCompletionRate:20,inProgress:0},shifts:[],distribution:[{score:1,responses:2,is_nps:false},{score:5,responses:8,is_nps:false}],daily:[]};
+  const fetch = vi.fn((input: RequestInfo | URL) => {
+    const path = String(input);
+    if (path.includes("/api/public/tv-wall")) return Promise.resolve(Response.json({data: publicData}));
+    if (path.includes("/api/analytics/dashboard")) return Promise.resolve(Response.json({data: dashboard}));
+    if (path.includes("/api/analytics/heatmap")) return Promise.resolve(Response.json({data: [{sectorId: 4,satisfactionMean: 4.5,npsMean: 9,positivePercentage: 80,completionRate: 90,responses: 10,npsResponses: 10,started: 10,completed: 9}]}));
+    if (path.includes("/api/sectors")) return Promise.resolve(Response.json({data: [{id: 4,name: "Internação",code: "INT",deletedAt: null}]}));
+    return Promise.reject(new Error(`Unexpected request: ${path}`));
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.replaceState({}, "", "/tv-wall");
+  const host = document.createElement("div"), root = createRoot(host);
+  await act(async () => root.render(<App/>));
+  await vi.waitFor(() => expect(host.textContent).toContain("Internação"));
+  expect(host.textContent).toContain("Nota 5");
+  expect(host.textContent).toContain("Internação");
+  expect(host.querySelector(".fhdod-heatmap")).not.toBeNull();
+  await act(async () => root.unmount());
 });
 it("salva a ordem pré-visualizada e os filtros carregados pela API", async () => {
   const config = {periodDays:7, refreshSeconds:60, indicators:["nps","completionRate"],sectorIds:[4]};

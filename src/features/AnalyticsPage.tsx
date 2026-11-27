@@ -18,9 +18,9 @@ const monthStart = () => `${today().slice(0, 7)}-01`;
 function Card({ label, value, priority = false }: { label: string; value: string; priority?: boolean }) {
   return <article className="fhdod-profile-card fhdod-kpi" data-priority={priority ? "high" : "normal"}><small>{label}</small><strong>{value}</strong></article>;
 }
-export function Bars({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
+export function Bars({ title, rows }: { title: string; rows: { label: string; value: number; color?: string }[] }) {
   const max = Math.max(1, ...rows.map((row) => row.value));
-  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>{title}</h2>{rows.length === 0 ? <p className="text-secondary">Sem dados no período.</p> : rows.map((row) => <div className="fhdod-chart-row" key={row.label}><div><span>{row.label}</span><strong>{format(row.value, 0)}</strong></div><div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)}`}><div className="progress-bar" style={{ width: `${(row.value / max) * 100}%` }} /></div></div>)}</section>;
+  return <section className="fhdod-profile-card fhdod-chart-panel"><h2>{title}</h2>{rows.length === 0 ? <p className="text-secondary">Sem dados no período.</p> : rows.map((row) => <div className="fhdod-chart-row" key={row.label}><div><span>{row.label}</span><strong>{format(row.value, 0)}</strong></div><div className="progress" role="img" aria-label={`${row.label}: ${format(row.value, 0)}`}><div className="progress-bar" style={{ width: `${(row.value / max) * 100}%`, background: row.color }} /></div></div>)}</section>;
 }
 export function Donut({ rows, title = "Distribuição de notas gerais", emptyMessage = "Sem dados no período." }: { rows: { label: string; value: number; score: number }[]; title?: string; emptyMessage?: string }) {
   const [activeScore, setActiveScore] = useState<number | null>(null);
