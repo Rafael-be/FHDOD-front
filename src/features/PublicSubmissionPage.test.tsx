@@ -126,18 +126,15 @@ describe("PublicSubmissionPage", () => {
   it("pula com nota nula apenas após confirmação e encerra sem criar outra sessão", async () => {
     vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
     const start = vi.spyOn(submissionsService, "start").mockResolvedValue(started);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    const close = vi.spyOn(submissionsService, "close").mockResolvedValue({sessionId:"session-1",status:"closed"});
-    const answer = vi.spyOn(submissionsService, "answer").mockRejectedValue(new TypeError("offline"));
+    const answer = vi.spyOn(submissionsService, "answer").mockResolvedValue({...started.answer, status:"complete"});
     await render();
-    expect(button("Pular")).toBeUndefined();
-    await act(async () => button("2").click());
+    expect(button("Pular")).toBeDefined();
     await act(async () => button("Pular").click());
-    expect(answer.mock.calls[0][2]).toEqual({questionId:3,questionVersionId:4,status:"skipped",score:null});
-    expect(container.querySelector("h1")?.textContent).toBe("Como foi o atendimento?");
-    await act(async () => button("Encerrar sessão").click());
-    expect(close).toHaveBeenCalledWith("session-1","token-1");
-    expect(container.querySelector("h1")?.textContent).toBe("Recomendaria este atendimento?");
+    expect(start.mock.calls[0][4]).toEqual({questionId:1,questionVersionId:2,status:"skipped",score:null});
+    expect(container.textContent).toContain("Como foi o atendimento?");
+    await act(async () => button("Pular").click());
+    expect(answer).toHaveBeenCalledWith("session-1","token-1",{questionId:3,questionVersionId:4,status:"skipped",score:null});
+    expect(container.textContent).toContain("Obrigado pela sua participação");
     expect(start).toHaveBeenCalledOnce();
   });
 
@@ -145,22 +142,15 @@ describe("PublicSubmissionPage", () => {
     vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
     const start = vi.spyOn(submissionsService, "start").mockResolvedValue(started);
     const close = vi.spyOn(submissionsService, "close").mockResolvedValue({sessionId:"session-1",status:"closed"});
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     await render();
     expect(button("Encerrar sessão")).toBeUndefined();
     await act(async () => button("0").click());
-    expect(button("Encerrar sessão")).toBeDefined();
+    expect(button("Encerrar sessão")).toBeUndefined();
     expect(button("Pular")).toBeDefined();
-    expect([...container.querySelectorAll(".fhdod-question-actions button")].map(item=>item.textContent)).toEqual(["Reiniciar formulário","Encerrar sessão","Pular"]);
-    vi.useFakeTimers();
-    await act(async () => button("Encerrar sessão").click());
+    expect([...container.querySelectorAll(".fhdod-question-actions button")].map(item=>item.textContent)).toEqual(["Reiniciar formulário","Pular"]);
+    await act(async () => button("Reiniciar formulário").click());
     expect(close).toHaveBeenCalledWith("session-1","token-1");
     expect(container.querySelector("h1")?.textContent).toBe("Recomendaria este atendimento?");
-    expect(container.querySelector(".fhdod-toast")?.textContent).toBe("Sessão encerrada com sucesso.");
-    await act(async () => vi.advanceTimersByTime(4999));
-    expect(container.querySelector(".fhdod-toast")).not.toBeNull();
-    await act(async () => vi.advanceTimersByTime(1));
-    expect(container.querySelector(".fhdod-toast")).toBeNull();
     await act(async () => button("0").click());
     expect(start).toHaveBeenCalledTimes(2);
     expect(start.mock.calls[0][2]).not.toBe(start.mock.calls[1][2]);
@@ -170,13 +160,23 @@ describe("PublicSubmissionPage", () => {
     vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
     vi.spyOn(submissionsService, "start").mockResolvedValue(started);
     vi.spyOn(submissionsService, "close").mockRejectedValue(new TypeError("offline"));
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     await render();
     await act(async () => button("0").click());
-    await act(async () => button("Encerrar sessão").click());
+    await act(async () => button("Reiniciar formulário").click());
     expect(container.querySelector("h1")?.textContent).toBe("Como foi o atendimento?");
     expect(container.textContent).toContain("Falha de conexão");
     expect(container.querySelector(".fhdod-toast")).toBeNull();
+  });
+
+  it("não avança nem registra nota quando o backend rejeita o skip", async () => {
+    vi.spyOn(submissionsService, "currentForm").mockResolvedValue(form);
+    vi.spyOn(submissionsService, "start").mockResolvedValue(started);
+    vi.spyOn(submissionsService, "answer").mockRejectedValue(new ApiError("skip bloqueado", 400, "QUESTION_NOT_SKIPPABLE"));
+    await render();
+    await act(async () => button("0").click());
+    await act(async () => button("Pular").click());
+    expect(container.querySelector("h1")?.textContent).toBe("Como foi o atendimento?");
+    expect(container.textContent).toContain("Esta pergunta não pode ser pulada.");
   });
 
   it("renova pelo prazo confirmado e ignora resposta tardia depois da expiração", async () => {

@@ -329,9 +329,7 @@ small, .small { font-size: .875rem; }
 .fhdod-satisfaction-rating__score { font-size: clamp(1rem, 2vw, 1.25rem); font-weight: 800; line-height: 1.3; }
 .fhdod-question-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .fhdod-question-actions .fhdod-button--primary { min-width: 160px; }
-.fhdod-question-actions .fhdod-question-close { order: 0; color: var(--color-text-muted); }
 .fhdod-question-actions .fhdod-question-restart { margin-right: auto; color: var(--color-text-muted); }
-.fhdod-question-actions .fhdod-question-close:hover { color: var(--color-text); }
 .fhdod-question-actions .fhdod-question-trace { order: 1; }
 .fhdod-question-actions .fhdod-question-skip { order: 2; margin-left: auto; }
 .fhdod-toast { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 1040; max-width: min(92vw, 360px); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-success-border); border-radius: var(--radius-md); background: var(--color-success-subtle); color: var(--color-success); box-shadow: 0 8px 24px var(--color-shadow-soft); font-weight: 700; pointer-events: none; }
