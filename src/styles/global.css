@@ -267,9 +267,9 @@ small, .small { font-size: .875rem; }
 .fhdod-sector-actions, .fhdod-manager-actions { min-width: max-content; }
 .fhdod-manager-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .table td:last-child { text-align: right; white-space: nowrap; }
-.fhdod-editor-actions .fhdod-button:nth-child(1) { border-color: var(--color-success-border); color: var(--color-success); }
-.fhdod-editor-actions .fhdod-button:nth-child(2) { color: var(--color-primary-active); }
-.fhdod-editor-actions .fhdod-button:nth-child(3) { color: var(--color-primary-deep); }
+.fhdod-editor-actions .fhdod-button:nth-child(1) { border-color: var(--color-primary-border); color: var(--color-primary-deep); }
+.fhdod-editor-actions .fhdod-button:nth-child(2) { border-color: var(--color-success-border); color: var(--color-success); }
+.fhdod-editor-actions .fhdod-button:nth-child(3) { color: var(--color-primary-active); }
 .fhdod-sheet-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .fhdod-action-icon { width: 1.05em; height: 1.05em; margin-right: .45em; vertical-align: -.16em; }
 .fhdod-chart-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: var(--space-4); margin-bottom: var(--space-4); }
