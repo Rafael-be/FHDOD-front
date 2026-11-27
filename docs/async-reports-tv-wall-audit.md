@@ -4,7 +4,7 @@
 
 Auditoria realizada no repositório `FHDOD-front`, na branch `fix/async-reports-and-tv-wall-data`, comparada à `origin/develop` em `b03a3ee`. A branch tinha como escopo principal o consumo de jobs assíncronos de relatórios e a atualização dos filtros de turno/indicadores do Analytics e TV Wall.
 
-Não há PR aberto correspondente no repositório remoto. O backend, Redis, PostgreSQL, migrations e pipelines CI/CD não estão presentes neste checkout; portanto, seus contratos e propriedades operacionais não foram tratados como validados.
+Não há PR aberto correspondente no repositório remoto. O backend foi encontrado em `C:/Users/muril/FHDOD`, em `develop` no SHA `9ea84d0`, e foi consultado somente em modo de leitura.
 
 ## Achados
 
@@ -23,7 +23,10 @@ Correção: o job local é invalidado quando qualquer filtro muda. O job remoto 
 ## Limitações e dependências
 
 - A criação, persistência, retries, concorrência, ownership, expiração e limpeza dos jobs dependem do backend em `/api/reports/jobs`.
-- A compatibilidade de `shiftName` e a consistência dos agregados do TV Wall dependem do contrato do backend; o frontend apenas envia/consome esse campo.
+- Bloqueador de integração: o backend `9ea84d0` não implementa `/api/reports/jobs`, `/api/reports/jobs/:jobId` ou o download assíncrono correspondente. Seus contratos disponíveis são `POST /api/reports/preview` e `POST /api/reports/download`.
+- Bloqueador de integração: o backend aceita `shiftRangeId` nos filtros de Analytics, mas não declara `shiftName`. O frontend desta branch envia `shiftName`; isso exige implementação coordenada no backend ou uma correção posterior do frontend.
+- O contrato do TV Wall foi confirmado: `GET /api/public/tv-wall`, `GET/PUT /api/tv-wall/config`, configuração de 120 requisições/minuto por IP, `RATE_LIMIT_TV_WALL_PER_IP`, HTTP 429 e código `TV_WALL_RATE_LIMITED`.
+- Redis, PostgreSQL, migrations e pipelines CI/CD não foram executados nesta validação frontend; a documentação e os testes do backend foram apenas inspecionados.
 - Não foram executadas migrations, consultas PostgreSQL, Redis real, testes de PDF/Poppler ou validações de rate limit, pois pertencem a outro repositório/ambiente.
 - A integração com `origin/develop` foi analisada por diff e merge-base; nenhum merge ou rebase foi realizado.
 - A simulação com `git merge-tree` encontrou conflitos de integração em `AnalyticsInsights.tsx` (paleta/visualizações) e `PublicSubmissionPage.test.tsx` (testes dos rostinhos). A resolução deve combinar manualmente as duas mudanças quando a branch for integrada; nenhum dos conflitos foi mascarado por merge automático.
