@@ -372,11 +372,12 @@ small, .small { font-size: .875rem; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-.tv-wall { min-height: 100dvh; background: #102c32; color: #fff; padding: clamp(1rem, 4vw, 6rem); display: flex; flex-direction: column; justify-content: center; gap: 3vh; }
+.tv-wall { min-height: 100dvh; background: #102c32; color: #fff; padding: clamp(1rem, 4vw, 6rem); display: flex; flex-direction: column; justify-content: flex-start; gap: 3vh; }
 .tv-wall header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.tv-wall h1 { color: inherit; font-size: clamp(2rem, 4vw, 6rem); }
-.tv-wall p { font-size: clamp(1.1rem, 2vw, 3rem); }
-.tv-wall button { color: white; background: transparent; border: 1px solid currentColor; border-radius: .4rem; padding: .5rem; }
+.tv-wall > header h1 { color: inherit; font-size: clamp(2rem, 4vw, 6rem); }
+.tv-wall > header p { font-size: clamp(1.1rem, 2vw, 3rem); }
+.tv-wall > header button { color: white; background: transparent; border: 1px solid currentColor; border-radius: .4rem; padding: .5rem; }
+.tv-wall > .fhdod-analytics { width: 100%; color: var(--color-text); }
 .wall-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 1.5vw; }
 .wall-tiles article { background: #1c444c; color: white; border-radius: 1rem; padding: clamp(1rem, 2.5vw, 4rem); }
 .wall-tiles h2 { color: inherit; font-size: clamp(1.3rem, 2.3vw, 4rem); }

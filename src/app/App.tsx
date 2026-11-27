@@ -68,7 +68,7 @@ function AuthenticatedApp() {
   if (path === "/ouvidoria") return user.role === "superuser" ? shell(<OmbudsmanPage />) : shell(<EmptyState title="Acesso restrito">Esta página exige acesso de superusuário.</EmptyState>);
   if (path === "/lgpd") return shell(<PublicPage />);
   if (path === "/erro") return shell(<ErrorState />);
-  if (path !== "/") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
+  if (path !== "/" && path !== "/indicadores") return shell(<EmptyState title="Página não encontrada">Verifique o endereço ou volte para o início.</EmptyState>);
   return shell(<AnalyticsPage userId={user.id} canManage={user.role === "superuser"} />);
 }
 
