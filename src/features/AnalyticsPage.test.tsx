@@ -65,14 +65,19 @@ it("restaura select nativo de setor, gráfico de um dia e séries 100/70", async
   } finally {await cleanup();}
 });
 
-it("agrega várias faixas históricas do mesmo turno e combina filtro de setor", async()=>{
+it("envia shiftName em uma única consulta e combina filtro de setor", async()=>{
   vi.spyOn(sectorsService,"list").mockResolvedValue([{id:2,name:"Internação",code:"INT",deletedAt:null},{id:4,name:"Pronto Atendimento",code:"PA",deletedAt:null}]);
-  const base=report(100,70,[{id:10,name:"Madrugada",sector_id:2,completed:20,percentage:0},{id:13,name:"Madrugada",sector_id:4,completed:10,percentage:0},{id:11,name:"Dia",sector_id:2,completed:20,percentage:0},{id:12,name:"Noite",sector_id:2,completed:20,percentage:0}]);
   const dashboard=vi.spyOn(analyticsService,"dashboard").mockImplementation(async filter=>{
-    if (!filter.shiftRangeId) return filter.sectorId === 2 ? report(70, 60, [base.shifts[0],base.shifts[2],base.shifts[3]]) : base;
-    if (filter.shiftRangeId===10) return report(30,20,[base.shifts[0]]);
-    if (filter.shiftRangeId===13) return report(20,10,[base.shifts[1]]);
-    throw new Error("ID inesperado");
+    if (filter.shiftName==="Madrugada" && filter.sectorId===2) {
+      return report(30,20,[{id:10,name:"Madrugada",sector_id:2,completed:20,percentage:100}]);
+    }
+    if (filter.shiftName==="Madrugada") {
+      return report(50,30,[
+        {id:10,name:"Madrugada",sector_id:2,completed:20,percentage:67},
+        {id:13,name:"Madrugada",sector_id:4,completed:10,percentage:33},
+      ]);
+    }
+    return report();
   });
   const questions=vi.spyOn(analyticsService,"questions").mockResolvedValue([]);
   const {container,cleanup}=await render();
@@ -80,16 +85,14 @@ it("agrega várias faixas históricas do mesmo turno e combina filtro de setor",
     const shift=container.querySelector("#analytics-shift") as HTMLSelectElement;
     const sector=container.querySelector("#analytics-sector") as HTMLSelectElement;
     await change(shift,"Madrugada"); await apply(container);
-    expect(dashboard.mock.calls.map(call=>call[0].shiftRangeId).filter(Boolean).sort()).toEqual([10,13]);
+    expect(dashboard.mock.lastCall?.[0]).toMatchObject({shiftName:"Madrugada"});
+    expect(dashboard.mock.calls.filter(call=>call[0].shiftName==="Madrugada")).toHaveLength(1);
     expect(container.textContent).toContain("Taxa de conclusão: 60%");
     expect(container.textContent).toContain("Madrugada30");
-    expect(container.textContent).toContain("Dia0");
-    expect(questions.mock.calls.map(call=>call[0].shiftRangeId).filter(Boolean).sort()).toEqual([10,13]);
+    expect(questions.mock.lastCall?.[0]).toMatchObject({shiftName:"Madrugada"});
     await change(sector,"2"); await apply(container);
-    expect(dashboard.mock.lastCall?.[0]).toMatchObject({sectorId:2});
-    expect(dashboard.mock.calls.filter(call=>call[0].sectorId===2 && call[0].shiftRangeId===13)).toHaveLength(0);
-    expect(dashboard.mock.calls.some(call=>call[0].sectorId===2 && call[0].shiftRangeId===10)).toBe(true);
-    expect(questions.mock.calls.some(call=>call[0].sectorId===2 && call[0].shiftRangeId===10)).toBe(true);
+    expect(dashboard.mock.lastCall?.[0]).toMatchObject({sectorId:2,shiftName:"Madrugada"});
+    expect(questions.mock.lastCall?.[0]).toMatchObject({sectorId:2,shiftName:"Madrugada"});
     await vi.waitFor(() => expect(container.textContent).toContain("Madrugada20"));
   } finally {await cleanup();}
 });

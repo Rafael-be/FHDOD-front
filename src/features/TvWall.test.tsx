@@ -39,7 +39,7 @@ it("salva a ordem pré-visualizada e os filtros carregados pela API", async () =
   const host = document.createElement("div"), root = createRoot(host), client = new QueryClient();
   await act(async () => root.render(<QueryClientProvider client={client}><TvWallConfig userId={1}/></QueryClientProvider>));
   await act(async () => {await new Promise(resolve => setTimeout(resolve,10));});
-  await act(async () => (host.querySelector('[aria-label="Adiar NPS médio"]') as HTMLButtonElement).click());
+  await act(async () => (host.querySelector('[aria-label="Adiar Índice NPS"]') as HTMLButtonElement).click());
   expect(host.querySelector(".wall-tiles h2")?.textContent).toBe("Taxa de conclusão");
   await act(async () => host.querySelector("form")!.dispatchEvent(new Event("submit", {bubbles:true,cancelable:true})));
   expect(request).toHaveBeenCalledWith("/api/tv-wall/config", {method:"PUT",body:{...config, indicators:["completionRate","nps"]}});

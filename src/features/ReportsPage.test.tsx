@@ -32,3 +32,18 @@ it("restringe tipos, valida setor e renderiza indicadores recebidos", async () =
   expect(tableScroll?.closest(".fhdod-profile-card")).not.toBeNull();
   await act(async () => { root.unmount(); });
 });
+
+it("descarta o job concluído quando os filtros mudam", async () => {
+  vi.spyOn(reportsService, "types").mockResolvedValue(options);
+  vi.spyOn(sectorsService, "list").mockResolvedValue([]);
+  vi.spyOn(reportsService, "createJob").mockResolvedValue({ jobId: "job-1", status: "completed", attempts: 1, expiresAt: "2099-01-01T00:00:00Z" });
+  const host = document.createElement("div"); document.body.append(host); const root = createRoot(host);
+  await act(async () => { root.render(<ReportsPage canManage={false} />); });
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+  await act(async () => { [...host.querySelectorAll("button")].find(button => button.textContent === "Baixar PDF")!.click(); });
+  expect(host.textContent).toContain("Relatório pronto para baixar.");
+  const dates = host.querySelectorAll<HTMLInputElement>('input[type="date"]');
+  await act(async () => { const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!; setValue.call(dates[0], "2026-01-01"); dates[0].dispatchEvent(new Event("change", { bubbles: true })); });
+  expect(host.textContent).not.toContain("Baixar relatório pronto");
+  await act(async () => { root.unmount(); });
+});

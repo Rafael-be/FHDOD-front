@@ -6,7 +6,7 @@ import { loadPublicDisplay, type Indicator } from "./tvDisplay";
 import { api } from "../services/http";
 import { sectorsService } from "./sectors";
 
-const titles = { completionRate: "Taxa de conclusão", nps: "NPS médio", npsGroups: "Classificação do NPS" };
+const titles = { completionRate: "Taxa de conclusão", nps: "Índice NPS", npsGroups: "Classificação do NPS" };
 type Metric = keyof typeof titles;
 interface Settings {periodDays: number; refreshSeconds: number; indicators: Metric[]; sectorIds: number[]}
 const configPath = "/api/tv-wall/config";

@@ -31,6 +31,21 @@ it("usa todas as notas da API e a ordem do formulário vigente sem incluir NPS",
   await view.close();
 });
 
+it("associa cores, rótulos e quantidades às notas reais mesmo fora de ordem",async()=>{
+  const view=await render(<QuestionDistribution report={{sectorId:2,formVersionId:40,questions:[
+    {questionId:9,questionVersionId:10,text:"Acolhimento",position:1,mean:3,responses:4,skipped:0,distribution:[{score:5,responses:2},{score:1,responses:2}]},
+  ]}}/>);
+  const segments=[...view.node.querySelectorAll<HTMLElement>(".fhdod-stacked-bar span")];
+  expect(segments.map(segment=>[segment.getAttribute("title"),segment.style.background])).toEqual([
+    ["Nota 5: 2 respostas","rgb(22, 163, 74)"],
+    ["Nota 1: 2 respostas","rgb(220, 38, 38)"],
+  ]);
+  expect(view.node.querySelector(".fhdod-distribution-counts")?.textContent).toBe("Nota 5: 2Nota 1: 2");
+  expect(view.node.querySelector<HTMLElement>(".fhdod-score-legend span:first-child")?.style.getPropertyValue("--legend-color")).toBe("#DC2626");
+  expect(view.node.querySelector<HTMLElement>(".fhdod-score-legend span:last-child")?.style.getPropertyValue("--legend-color")).toBe("#16A34A");
+  await view.close();
+});
+
 it("respeita o ranking e a amostra mínima informados pelo backend",async()=>{
   const view=await render(<CriticalRanking report={{minimumResponses:7,items:[{sectorId:2,questionId:9,questionVersionId:10,text:"Acolhimento",mean:2,responses:8}]}} names={new Map([[2,"Internação"]])} limit={5} onLimit={()=>undefined}/>);
   expect(view.node.textContent).toContain("Acolhimento · Internação");
