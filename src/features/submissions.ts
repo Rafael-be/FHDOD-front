@@ -32,6 +32,10 @@ export interface SubmissionStart {
   replayed: boolean;
 }
 
+export function isSatisfactionQuestion(question: Pick<SubmissionQuestion, "isNps" | "options" | "minScore" | "maxScore">): boolean {
+  return !question.isNps && question.minScore === 1 && question.maxScore === 5 && [1, 2, 3, 4, 5].every((score) => question.options.includes(score));
+}
+
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 export function newAttempt() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
